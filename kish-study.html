@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>KISH 열공타이머</title>
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyDVtbQyVVbnwTFzQDURGNAd861MTFaiYlI",
+  authDomain:"kish-study.firebaseapp.com",
+  projectId:"kish-study",
+  storageBucket:"kish-study.firebasestorage.app",
+  messagingSenderId:"948001529630",
+  appId:"1:948001529630:web:2d57be7b07dfc5206af30f"
+});
+var db = firebase.firestore();
+</script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0f2f5;--white:#fff;--primary:#5C6BC0;--primary2:#3949AB;
+  --accent:#FF7043;--green:#43A047;--red:#E53935;
+  --text:#1a1a2e;--sub:#888;--border:#e0e0e0;
+  --card:0 2px 8px rgba(0,0,0,0.08);
+}
+body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:80px}
+
+/* TOP BAR */
+.topbar{background:var(--primary);padding:16px 16px 0;position:sticky;top:0;z-index:100}
+.topbar-title{color:#fff;font-size:18px;font-weight:900;letter-spacing:-0.5px;margin-bottom:12px}
+.tab-row{display:flex;gap:0}
+.tab-btn{flex:1;padding:10px 0;border:none;background:transparent;color:rgba(255,255,255,0.6);font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;border-bottom:3px solid transparent;transition:all 0.2s}
+.tab-btn.active{color:#fff;border-bottom:3px solid #fff}
+
+/* PAGES */
+.page{display:none;padding:16px}
+.page.active{display:block}
+
+/* TIMER CARD */
+.timer-card{background:var(--primary);border-radius:20px;padding:28px 20px 22px;text-align:center;margin-bottom:14px;box-shadow:0 4px 20px rgba(92,107,192,0.3)}
+.timer-num{font-size:72px;font-weight:900;color:#fff;letter-spacing:-3px;line-height:1;font-variant-numeric:tabular-nums}
+.timer-subj{margin-top:10px;display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.18);padding:5px 14px;border-radius:20px;font-size:13px;font-weight:700;color:#fff}
+.timer-status{margin-top:8px;font-size:12px;color:rgba(255,255,255,0.7);font-weight:600}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.4);margin-right:5px;vertical-align:middle}
+.dot.on{background:#69F0AE;animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+
+/* CARD */
+.card{background:var(--white);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:var(--card)}
+.card-title{font-size:11px;font-weight:800;color:var(--sub);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:12px}
+
+/* GOAL BAR */
+.goal-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.goal-text{font-size:13px;font-weight:700;color:var(--text)}
+.goal-pct{font-size:13px;font-weight:800;color:var(--primary)}
+.pbar-bg{height:10px;background:#eee;border-radius:99px;overflow:hidden;margin-bottom:10px}
+.pbar-fill{height:100%;background:linear-gradient(90deg,var(--primary),#9FA8DA);border-radius:99px;transition:width 0.5s}
+.pbar-fill.done{background:linear-gradient(90deg,var(--green),#A5D6A7)}
+.goal-chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:#fff;font-size:12px;font-weight:700;color:var(--sub);cursor:pointer;font-family:inherit;transition:all 0.15s}
+.chip.on{background:var(--primary);border-color:var(--primary);color:#fff}
+
+/* INFO INPUTS */
+.input-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
+.inp-wrap label{display:block;font-size:10px;font-weight:800;color:var(--sub);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em}
+.inp-wrap select,.inp-wrap input{width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:inherit;font-weight:600;color:var(--text);background:#fff;outline:none;appearance:none}
+.inp-wrap select:focus,.inp-wrap input:focus{border-color:var(--primary)}
+.nick-wrap{margin-bottom:12px}
+.nick-wrap label{display:block;font-size:10px;font-weight:800;color:var(--sub);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em}
+.nick-wrap input{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:inherit;font-weight:600;color:var(--text);background:#fff;outline:none}
+.nick-wrap input:focus{border-color:var(--primary)}
+
+/* SUBJECT GRID */
+.subj-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:14px}
+.subj-btn{border:1.5px solid var(--border);background:#fff;border-radius:12px;padding:10px 4px;font-size:12px;font-weight:700;font-family:inherit;color:var(--sub);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;transition:all 0.15s}
+.subj-btn .ico{font-size:18px}
+.subj-btn.on{border-color:var(--primary);background:var(--primary);color:#fff}
+
+/* START BTN */
+.start-btn{width:100%;padding:16px;border-radius:14px;border:none;font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;background:var(--primary);color:#fff;margin-bottom:12px;transition:all 0.15s;letter-spacing:-0.3px}
+.start-btn.stop{background:var(--red)}
+.start-btn:active{transform:scale(0.98)}
+
+/* STAT BOXES */
+.stat-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.stat-box{border-radius:12px;padding:12px 8px;text-align:center}
+.stat-box.s1{background:#E8F5E9;border:1.5px solid #C8E6C9}
+.stat-box.s2{background:#E8EAF6;border:1.5px solid #C5CAE9}
+.stat-box.s3{background:#FFF3E0;border:1.5px solid #FFE0B2}
+.stat-lbl{font-size:10px;font-weight:800;color:var(--sub);margin-bottom:4px}
+.stat-val{font-size:15px;font-weight:900;color:var(--primary)}
+.stat-box.s1 .stat-val{color:var(--green)}
+.stat-box.s3 .stat-val{color:#F57C00}
+
+/* TITLE BADGE */
+.badge-row{display:flex;align-items:center;justify-content:center;margin-top:10px}
+.my-badge{background:rgba(255,255,255,0.15);padding:5px 16px;border-radius:20px;font-size:13px;font-weight:800;color:#fff}
+
+/* STATS PAGE */
+.subj-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.sbr-name{width:60px;font-size:12px;font-weight:700;flex-shrink:0}
+.sbr-bg{flex:1;height:9px;background:#eee;border-radius:99px;overflow:hidden}
+.sbr-fill{height:100%;background:var(--primary);border-radius:99px}
+.sbr-time{width:72px;text-align:right;font-size:11px;font-weight:700;color:var(--sub);flex-shrink:0}
+
+/* GRASS */
+.grass{display:flex;flex-wrap:wrap;gap:3px}
+.gc{width:15px;height:15px;border-radius:3px;background:#eee}
+.gc.l1{background:#C5CAE9}
+.gc.l2{background:#7986CB}
+.gc.l3{background:#3949AB}
+.grass-legend{display:flex;align-items:center;gap:5px;margin-top:8px;font-size:11px;color:var(--sub)}
+.gl-c{width:12px;height:12px;border-radius:2px}
+
+/* RANK PAGE */
+.rank-seg{display:flex;background:#eee;border-radius:12px;padding:3px;margin-bottom:14px;gap:3px}
+.seg-btn{flex:1;padding:8px;border:none;background:transparent;border-radius:9px;font-size:13px;font-weight:700;font-family:inherit;color:var(--sub);cursor:pointer;transition:all 0.2s}
+.seg-btn.on{background:#fff;color:var(--primary);box-shadow:0 1px 4px rgba(0,0,0,0.1)}
+.cls-filter{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.cls-chip{padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:#fff;font-size:12px;font-weight:700;color:var(--sub);cursor:pointer;font-family:inherit}
+.cls-chip.on{background:var(--primary);border-color:var(--primary);color:#fff}
+
+/* TOP 3 */
+.top3{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:8px;margin-bottom:12px;align-items:flex-end}
+.t3{background:#fff;border-radius:16px;padding:14px 8px;text-align:center;box-shadow:var(--card)}
+.t3.gold{background:linear-gradient(160deg,#fffde7,#fff8e1);border:2px solid #FFD54F}
+.t3-crown{font-size:22px;margin-bottom:4px}
+.t3-rank{font-size:10px;font-weight:800;color:var(--sub)}
+.t3-name{font-size:13px;font-weight:800;margin:3px 0 1px;word-break:break-all}
+.t3-info{font-size:10px;color:var(--sub)}
+.t3-time{font-size:15px;font-weight:900;color:var(--primary);margin-top:5px}
+.t3-ico{font-size:16px;margin-top:3px}
+.t3-ttl{font-size:11px;color:var(--sub);margin-top:2px}
+
+/* RANK LIST */
+.rank-item{display:flex;align-items:center;background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--card)}
+.rk-num{width:28px;height:28px;border-radius:50%;background:var(--bg);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;color:var(--sub);flex-shrink:0}
+.rk-info{flex:1;margin-left:10px}
+.rk-name{font-size:13px;font-weight:800}
+.rk-badge{display:inline-block;background:#E8EAF6;color:var(--primary);font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;margin-left:5px}
+.rk-ico{font-size:13px;margin-left:3px}
+.rk-bar-bg{height:3px;background:#eee;border-radius:99px;margin-top:5px;overflow:hidden}
+.rk-bar{height:3px;background:var(--primary);border-radius:99px}
+.rk-right{text-align:right}
+.rk-time{font-size:14px;font-weight:900;color:var(--primary)}
+.rk-ttl{font-size:10px;color:var(--sub);margin-top:2px}
+
+/* EVENT */
+.event-card{background:#FFF8E1;border:1.5px solid #FFE082;border-radius:14px;padding:14px;display:flex;gap:10px;margin-bottom:12px}
+.ev-ico{font-size:24px;flex-shrink:0}
+.ev-title{font-size:13px;font-weight:800;color:#E65100;margin-bottom:3px}
+.ev-desc{font-size:12px;color:#BF360C;line-height:1.5}
+
+/* EMPTY */
+.empty{text-align:center;padding:40px 0;color:var(--sub);font-size:13px}
+.empty-ico{font-size:40px;margin-bottom:10px}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:#333;color:#fff;padding:11px 20px;border-radius:12px;font-size:13px;font-weight:700;transition:transform 0.3s;z-index:999;white-space:nowrap;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-title">🔥 KISH 열공타이머</div>
+  <div class="tab-row">
+    <button class="tab-btn active" onclick="goTab('timer',this)">⏱ 타이머</button>
+    <button class="tab-btn" onclick="goTab('stats',this)">📊 통계</button>
+    <button class="tab-btn" onclick="goTab('rank',this)">🏆 랭킹</button>
+  </div>
+</div>
+
+<!-- TIMER -->
+<div class="page active" id="pg-timer">
+  <div class="timer-card">
+    <div id="timerNum" class="timer-num">00:00:00</div>
+    <div class="timer-subj" id="timerSubjWrap" style="display:none" id="timerSubjWrap">
+      <span id="timerSubjTxt"></span>
+    </div>
+    <div class="timer-status"><span class="dot" id="dot"></span><span id="statusTxt">대기 중</span></div>
+    <div class="badge-row"><div class="my-badge" id="myBadge">🌱 새싹</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">오늘 목표</div>
+    <div class="goal-row">
+      <div class="goal-text" id="goalTxt">목표를 선택하세요</div>
+      <div class="goal-pct" id="goalPct">-</div>
+    </div>
+    <div class="pbar-bg"><div class="pbar-fill" id="pbar" style="width:0%"></div></div>
+    <div class="goal-chips">
+      <button class="chip" onclick="setGoal(this,1)">1시간</button>
+      <button class="chip" onclick="setGoal(this,2)">2시간</button>
+      <button class="chip" onclick="setGoal(this,3)">3시간</button>
+      <button class="chip" onclick="setGoal(this,5)">5시간</button>
+      <button class="chip" onclick="setGoal(this,8)">8시간</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">내 정보</div>
+    <div class="input-row">
+      <div class="inp-wrap">
+        <label>학년</label>
+        <select id="iGrade">
+          <option value="">선택</option>
+          <optgroup label="중학교"><option>7학년</option><option>8학년</option><option>9학년</option></optgroup>
+          <optgroup label="고등학교"><option>10학년</option><option>11학년</option><option>12학년</option></optgroup>
+        </select>
+      </div>
+      <div class="inp-wrap">
+        <label>반</label>
+        <select id="iClass">
+          <option value="">선택</option>
+          <option>1반</option><option>2반</option><option>3반</option><option>4반</option>
+          <option>5반</option><option>6반</option><option>7반</option><option>8반</option>
+        </select>
+      </div>
+      <div class="inp-wrap">
+        <label>번호</label>
+        <input type="number" id="iNum" placeholder="1" min="1" max="40"/>
+      </div>
+    </div>
+    <div class="nick-wrap">
+      <label>닉네임 <span style="font-weight:500;color:var(--sub);text-transform:none;letter-spacing:0">(선택 · 없으면 번호로 표시)</span></label>
+      <input type="text" id="iNick" placeholder="랭킹에 표시될 닉네임" maxlength="10"/>
+    </div>
+    <div class="card-title">과목 선택</div>
+    <div class="subj-grid">
+      <button class="subj-btn" onclick="pickSubj(this,'수학')"><span class="ico">📐</span>수학</button>
+      <button class="subj-btn" onclick="pickSubj(this,'영어')"><span class="ico">🔤</span>영어</button>
+      <button class="subj-btn" onclick="pickSubj(this,'국어')"><span class="ico">📖</span>국어</button>
+      <button class="subj-btn" onclick="pickSubj(this,'과학')"><span class="ico">🔬</span>과학</button>
+      <button class="subj-btn" onclick="pickSubj(this,'사회')"><span class="ico">🌏</span>사회</button>
+      <button class="subj-btn" onclick="pickSubj(this,'역사')"><span class="ico">🏛️</span>역사</button>
+      <button class="subj-btn" onclick="pickSubj(this,'도덕')"><span class="ico">🤝</span>도덕</button>
+      <button class="subj-btn" onclick="pickSubj(this,'베트남어')"><span class="ico">🇻🇳</span>베트남어</button>
+    </div>
+    <button class="start-btn" id="startBtn" onclick="toggleTimer()">⏱ 공부 시작</button>
+    <div class="stat-row">
+      <div class="stat-box s1"><div class="stat-lbl">📅 오늘</div><div class="stat-val" id="stToday">0시간 00분</div></div>
+      <div class="stat-box s2"><div class="stat-lbl">📚 누적</div><div class="stat-val" id="stTotal">0시간 00분</div></div>
+      <div class="stat-box s3"><div class="stat-lbl">🔥 연속</div><div class="stat-val" id="stStreak">0일</div></div>
+    </div>
+  </div>
+
+  <div class="event-card">
+    <div class="ev-ico">🍫</div>
+    <div>
+      <div class="ev-title">시험 기간 간식 이벤트!</div>
+      <div class="ev-desc">시험 기간 누적 공부 시간 1등에게 간식 선물! 지금 공부하고 랭킹에 올라보세요 🎉</div>
+    </div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="page" id="pg-stats">
+  <div class="card">
+    <div class="card-title">과목별 공부 시간</div>
+    <div id="subjBars"><div class="empty"><div class="empty-ico">📊</div>아직 기록이 없어요</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px">공부 잔디 (최근 35일)</div>
+    <div class="grass" id="grass"></div>
+    <div class="grass-legend">
+      <span>적음</span>
+      <div class="gl-c" style="background:#eee"></div>
+      <div class="gl-c" style="background:#C5CAE9"></div>
+      <div class="gl-c" style="background:#7986CB"></div>
+      <div class="gl-c" style="background:#3949AB"></div>
+      <span>많음</span>
+    </div>
+  </div>
+</div>
+
+<!-- RANK -->
+<div class="page" id="pg-rank">
+  <div class="rank-seg">
+    <button class="seg-btn on" id="segAll" onclick="switchSeg('all',this)">전체 랭킹</button>
+    <button class="seg-btn" id="segCls" onclick="switchSeg('cls',this)">반별 랭킹</button>
+  </div>
+  <div id="clsFilterWrap" style="display:none"><div class="cls-filter" id="clsFilter"></div></div>
+  <div id="top3"></div>
+  <div id="rankList"><div class="empty"><div class="empty-ico">📭</div>공부 기록이 없어요</div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONSTANTS ──
+var ICO = {수학:'📐',영어:'🔤',국어:'📖',과학:'🔬',사회:'🌏',역사:'🏛️',도덕:'🤝',베트남어:'🇻🇳'};
+var TITLES = [
+  {min:0,t:'🌱 새싹'},{min:3600000,t:'📗 입문자'},{min:10800000,t:'💡 공부러'},
+  {min:36000000,t:'💪 고수'},{min:72000000,t:'🔥 열공인'},{min:180000000,t:'👑 전설'}
+];
+
+// ── HELPERS ──
+function ttl(ms){ return [...TITLES].reverse().find(function(x){return ms>=x.min;}).t; }
+function hms(ms){ var s=Math.floor(ms/1000); return [Math.floor(s/3600),Math.floor((s%3600)/60),s%60].map(function(v){return ('0'+v).slice(-2);}).join(':'); }
+function hm(ms){ var s=Math.floor((ms||0)/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60); return h+'시간 '+('0'+m).slice(-2)+'분'; }
+function today(){ return new Date().toISOString().slice(0,10); }
+function topS(subj){ if(!subj)return''; var e=Object.entries(subj).sort(function(a,b){return b[1]-a[1];})[0]; return e?ICO[e[0]]||'':''; }
+function streak(sess){ if(!sess)return 0; var n=0,d=new Date(); for(;;){ var k=d.toISOString().slice(0,10); if(!sess[k])break; n++; d.setDate(d.getDate()-1); } return n; }
+function toast(msg){ var t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2500); }
+function G(id){return document.getElementById(id);}
+
+// ── FIREBASE + LOCAL CACHE ──
+// localStorage를 캐시로 쓰고 Firebase를 실시간 소스로 사용
+function loadAll(){ try{return JSON.parse(localStorage.getItem('kish2')||'{}');}catch(e){return{};} }
+function saveLocal(key,data){ var all=loadAll(); all[key]=data; localStorage.setItem('kish2',JSON.stringify(all)); }
+
+function saveMe(key,data,cb){
+  saveLocal(key,data);
+  db.collection('users').doc(key).set(data).then(function(){ if(cb)cb(); }).catch(function(e){ console.error('FB save err',e); if(cb)cb(); });
+}
+
+// 실시간 랭킹 리스너
+db.collection('users').onSnapshot(function(snap){
+  var all = loadAll();
+  snap.docs.forEach(function(d){ all[d.id]=d.data(); });
+  localStorage.setItem('kish2',JSON.stringify(all));
+  renderRank();
+  // 내 데이터도 최신화
+  if(myKey && all[myKey]){ myData=all[myKey]; refreshMe(); }
+}, function(err){ console.warn('FB listen err',err); });
+
+// ── STATE ──
+var subj='', goalMs=0, running=false, iv=null, t0=null, el=0, myKey='', myData=null, segTab='all', segCls='';
+
+// ── TABS ──
+function goTab(id,btn){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+  G('pg-'+id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='rank') renderRank();
+  if(id==='stats') renderStats();
+}
+
+// ── GOAL ──
+function setGoal(btn,h){
+  goalMs=h*3600000;
+  document.querySelectorAll('.chip').forEach(function(b){b.classList.remove('on');});
+  btn.classList.add('on');
+  G('goalTxt').textContent='목표: '+h+'시간';
+  updProgress();
+}
+function updProgress(){
+  if(!goalMs){return;}
+  var todayMs=(myData&&myData.sess&&myData.sess[today()])||0;
+  var pct=Math.min(100,Math.round(todayMs/goalMs*100));
+  G('pbar').style.width=pct+'%';
+  G('pbar').className='pbar-fill'+(pct>=100?' done':'');
+  G('goalPct').textContent=pct+'%';
+}
+
+// ── SUBJECT ──
+function pickSubj(btn,name){
+  subj=name;
+  document.querySelectorAll('.subj-btn').forEach(function(b){b.classList.remove('on');});
+  btn.classList.add('on');
+  if(running){ G('timerSubjTxt').textContent=ICO[name]+' '+name; }
+}
+
+// ── REFRESH MY UI ──
+function refreshMe(){
+  if(!myData)return;
+  var todayMs=(myData.sess&&myData.sess[today()])||0;
+  G('stToday').textContent=hm(todayMs);
+  G('stTotal').textContent=hm(myData.total||0);
+  G('stStreak').textContent=streak(myData.sess)+'일';
+  G('myBadge').textContent=ttl(myData.total||0);
+  updProgress();
+}
+function renderStats(){
+  if(!myData){return;}
+  var subjects=myData.subj||{};
+  var entries=Object.entries(subjects).sort(function(a,b){return b[1]-a[1];});
+  if(!entries.length){ G('subjBars').innerHTML='<div class="empty"><div class="empty-ico">📊</div>아직 기록이 없어요</div>'; }
+  else{
+    var mx=entries[0][1]||1;
+    G('subjBars').innerHTML=entries.map(function(e){
+      return '<div class="subj-bar-row"><div class="sbr-name">'+(ICO[e[0]]||'')+' '+e[0]+'</div><div class="sbr-bg"><div class="sbr-fill" style="width:'+Math.round(e[1]/mx*100)+'%"></div></div><div class="sbr-time">'+hm(e[1])+'</div></div>';
+    }).join('');
+  }
+  var sess=myData.sess||{}, cells=[];
+  for(var i=34;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);var k=d.toISOString().slice(0,10),ms=sess[k]||0,lv=ms===0?'':ms<3600000?'l1':ms<7200000?'l2':'l3';cells.push('<div class="gc '+lv+'" title="'+k+': '+hm(ms)+'"></div>');}
+  G('grass').innerHTML=cells.join('');
+}
+
+// ── TIMER ──
+function toggleTimer(){
+  var grade=G('iGrade').value, cls=G('iClass').value, num=G('iNum').value;
+  var nick=(G('iNick').value||'').trim();
+  var name=nick||(grade+' '+cls+' '+num+'번');
+  myKey=grade+'_'+cls+'_'+num;
+  if(!running){
+    if(!grade||!cls||!num){toast('학년, 반, 번호를 입력해주세요!');return;}
+    if(!subj){toast('공부할 과목을 선택해주세요!');return;}
+    running=true; t0=Date.now(); el=0;
+    iv=setInterval(function(){el=Date.now()-t0; G('timerNum').textContent=hms(el);},500);
+    G('startBtn').textContent='⏹ 공부 종료'; G('startBtn').classList.add('stop');
+    G('dot').classList.add('on'); G('statusTxt').textContent='공부 중...';
+    var sw=G('timerSubjWrap'); sw.style.display='inline-flex'; G('timerSubjTxt').textContent=ICO[subj]+' '+subj;
+    ['iGrade','iClass','iNum','iNick'].forEach(function(id){G(id).disabled=true;});
+  } else {
+    running=false; clearInterval(iv); el=Date.now()-t0;
+    G('timerNum').textContent='00:00:00';
+    G('startBtn').textContent='⏱ 공부 시작'; G('startBtn').classList.remove('stop');
+    G('dot').classList.remove('on'); G('statusTxt').textContent='대기 중';
+    G('timerSubjWrap').style.display='none';
+    ['iGrade','iClass','iNum','iNick'].forEach(function(id){G(id).disabled=false;});
+    // 저장
+    var t=today(), saved=el;
+    var all=loadAll();
+    var prev=all[myKey]||{name:name,grade:grade,cls:cls,num:num,total:0,subj:{},sess:{}};
+    prev.name=name; prev.total=(prev.total||0)+saved;
+    prev.subj=prev.subj||{}; prev.subj[subj]=(prev.subj[subj]||0)+saved;
+    prev.sess=prev.sess||{}; prev.sess[t]=(prev.sess[t]||0)+saved;
+    myData=prev; refreshMe();
+    toast('✅ '+subj+' '+hm(saved)+' 저장 중...');
+    saveMe(myKey,prev,function(){ toast('✅ '+subj+' '+hm(saved)+' 저장 완료!'); });
+  }
+}
+
+// ── RANK ──
+function switchSeg(tab,btn){
+  segTab=tab;
+  document.querySelectorAll('.seg-btn').forEach(function(b){b.classList.remove('on');});
+  btn.classList.add('on');
+  G('clsFilterWrap').style.display=tab==='cls'?'block':'none';
+  if(tab==='cls') buildClsFilter();
+  renderRank();
+}
+function buildClsFilter(){
+  var all=loadAll(), classes=[...new Set(Object.values(all).map(function(r){return r.cls;}))].filter(Boolean).sort();
+  if(!segCls&&classes.length)segCls=classes[0];
+  G('clsFilter').innerHTML=classes.map(function(c){return '<button class="cls-chip'+(c===segCls?' on':'')+'" onclick="pickCls(\''+c+'\')">' +c+'</button>';}).join('');
+}
+function pickCls(c){segCls=c;buildClsFilter();renderRank();}
+function renderRank(){
+  var all=loadAll(), records=Object.values(all);
+  if(segTab==='cls') records=records.filter(function(r){return r.cls===segCls;});
+  records.sort(function(a,b){return (b.total||0)-(a.total||0);});
+  if(!records.length){
+    G('top3').innerHTML='';
+    G('rankList').innerHTML='<div class="empty"><div class="empty-ico">📭</div>공부 기록이 없어요</div>';
+    return;
+  }
+  var top=records.slice(0,3);
+  var order=top.length>=3?[top[1],top[0],top[2]]:top.length===2?[top[1],top[0]]:[top[0]];
+  var crowns=['🥈','🥇','🥉'], rnks=top.length>=3?[2,1,3]:top.length===2?[2,1]:[1];
+  G('top3').innerHTML='<div class="top3">'+order.map(function(r,i){
+    return '<div class="t3'+(rnks[i]===1?' gold':'')+'"><div class="t3-crown">'+crowns[i]+'</div><div class="t3-rank">'+rnks[i]+'위</div><div class="t3-name">'+(r.name||'')+'</div><div class="t3-info">'+(r.grade||'')+' '+(r.cls||'')+' '+(r.num||'')+'번</div><div class="t3-time">'+hm(r.total)+'</div><div class="t3-ico">'+topS(r.subj)+'</div><div class="t3-ttl">'+ttl(r.total||0)+'</div></div>';
+  }).join('')+'</div>';
+  var mx=records[0].total||1;
+  G('rankList').innerHTML=records.slice(3).map(function(r,i){
+    return '<div class="rank-item"><div class="rk-num">'+(i+4)+'</div><div class="rk-info"><div><span class="rk-name">'+(r.name||'')+'</span><span class="rk-badge">'+(r.grade||'')+' '+(r.cls||'')+' '+(r.num||'')+'번</span><span class="rk-ico">'+topS(r.subj)+'</span></div><div class="rk-bar-bg"><div class="rk-bar" style="width:'+Math.round((r.total||0)/mx*100)+'%"></div></div></div><div class="rk-right"><div class="rk-time">'+hm(r.total)+'</div><div class="rk-ttl">'+ttl(r.total||0)+'</div></div></div>';
+  }).join('');
+}
+
+// INIT
+renderRank();
+</script>
+</body>
+</html>
