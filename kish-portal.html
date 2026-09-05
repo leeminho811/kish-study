@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>KISH 생활 포털</title>
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyDVtbQyVVbnwTFzQDURGNAd861MTFaiYlI",
+  authDomain:"kish-study.firebaseapp.com",
+  projectId:"kish-study",
+  storageBucket:"kish-study.firebasestorage.app",
+  messagingSenderId:"948001529630",
+  appId:"1:948001529630:web:2d57be7b07dfc5206af30f"
+});
+var db = firebase.firestore();
+</script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0f2f5;--white:#fff;--primary:#5C6BC0;--primary2:#3949AB;
+  --accent:#FF7043;--green:#43A047;--red:#E53935;
+  --text:#1a1a2e;--sub:#888;--border:#e0e0e0;
+  --card:0 2px 8px rgba(0,0,0,0.08);
+}
+body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:40px}
+
+/* TOP BAR */
+.topbar{background:var(--primary);padding:16px 16px 0;position:sticky;top:0;z-index:100}
+.topbar-top{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.home-link{color:#fff;text-decoration:none;font-size:18px;opacity:0.85;flex-shrink:0}
+.topbar-title{color:#fff;font-size:18px;font-weight:900;letter-spacing:-0.5px}
+.tab-row{display:flex;gap:0}
+.tab-btn{flex:1;padding:10px 0;border:none;background:transparent;color:rgba(255,255,255,0.6);font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;border-bottom:3px solid transparent;transition:all 0.2s}
+.tab-btn.active{color:#fff;border-bottom:3px solid #fff}
+
+/* PAGES */
+.page{display:none;padding:16px}
+.page.active{display:block}
+
+/* CARD */
+.card{background:var(--white);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:var(--card)}
+.card-title{font-size:11px;font-weight:800;color:var(--sub);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:12px}
+
+/* FORM ELEMENTS */
+label{display:block;font-size:10px;font-weight:800;color:var(--sub);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em}
+.f-row{margin-bottom:10px}
+.f-row input[type=text],.f-row input[type=number],.f-row input[type=url],.f-row input[type=password],.f-row textarea,.f-row select{
+  width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:inherit;font-weight:600;color:var(--text);background:#fff;outline:none;resize:vertical
+}
+.f-row input:focus,.f-row textarea:focus,.f-row select:focus{border-color:var(--primary)}
+.f-2col{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.chip-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.chip{padding:7px 13px;border-radius:20px;border:1.5px solid var(--border);background:#fff;font-size:12px;font-weight:700;color:var(--sub);cursor:pointer;font-family:inherit;transition:all 0.15s}
+.chip.on{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn{width:100%;padding:13px;border-radius:12px;border:none;font-size:14px;font-weight:800;font-family:inherit;cursor:pointer;background:var(--primary);color:#fff;transition:all 0.15s}
+.btn:active{transform:scale(0.98)}
+.btn.ghost{background:#eee;color:var(--sub)}
+.btn.danger{background:var(--red)}
+.btn-row{display:flex;gap:8px}
+.btn-row .btn{flex:1}
+.hint{font-size:11px;color:var(--sub);margin-top:-4px;margin-bottom:10px;line-height:1.5}
+
+/* MAP */
+#map{width:100%;height:280px;border-radius:14px;margin-bottom:12px;background:#e8eaf0}
+.map-notice{background:#FFF3E0;border:1.5px solid #FFE0B2;border-radius:12px;padding:12px;font-size:12px;color:#E65100;line-height:1.6;margin-bottom:12px}
+.map-notice code{background:#fff;padding:1px 5px;border-radius:4px;font-size:11px}
+.fab{width:100%;padding:14px;border-radius:14px;border:none;font-size:14px;font-weight:800;font-family:inherit;cursor:pointer;background:var(--primary);color:#fff;margin-bottom:12px}
+.fab.on{background:var(--accent)}
+.picking-hint{background:#E8EAF6;border:1.5px solid #C5CAE9;border-radius:12px;padding:10px 12px;font-size:12px;color:var(--primary2);font-weight:700;margin-bottom:10px;text-align:center}
+
+/* LIST ITEMS */
+.item{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:var(--card)}
+.item-top{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px}
+.item-ico{font-size:20px;flex-shrink:0}
+.item-title{font-size:14px;font-weight:800;flex:1}
+.item-badge{font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;flex-shrink:0}
+.badge-lost{background:#FFEBEE;color:var(--red)}
+.badge-found{background:#E8F5E9;color:var(--green)}
+.badge-done{background:#eee;color:var(--sub)}
+.badge-live{background:#E8EAF6;color:var(--primary)}
+.item-desc{font-size:13px;color:var(--text);line-height:1.5;margin-bottom:8px;white-space:pre-wrap}
+.item-img{width:100%;max-height:180px;object-fit:cover;border-radius:10px;margin-bottom:8px}
+.item-meta{font-size:11px;color:var(--sub);display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.item-actions{display:flex;gap:6px}
+.item-actions button{flex:1;padding:8px;border-radius:9px;border:1.5px solid var(--border);background:#fff;font-size:12px;font-weight:700;color:var(--sub);cursor:pointer;font-family:inherit}
+.item-actions button.primary{border-color:var(--primary);color:var(--primary)}
+.item-actions button.warn{border-color:var(--red);color:var(--red)}
+
+/* SEG */
+.seg{display:flex;background:#eee;border-radius:12px;padding:3px;margin-bottom:14px;gap:3px}
+.seg-btn{flex:1;padding:8px;border:none;background:transparent;border-radius:9px;font-size:13px;font-weight:700;font-family:inherit;color:var(--sub);cursor:pointer;transition:all 0.2s}
+.seg-btn.on{background:#fff;color:var(--primary);box-shadow:0 1px 4px rgba(0,0,0,0.1)}
+
+/* EMPTY */
+.empty{text-align:center;padding:40px 0;color:var(--sub);font-size:13px}
+.empty-ico{font-size:40px;margin-bottom:10px}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;align-items:flex-end;justify-content:center}
+.overlay.show{display:flex}
+.sheet{background:#fff;border-radius:20px 20px 0 0;padding:20px 16px 24px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto}
+.sheet-title{font-size:16px;font-weight:900;margin-bottom:14px}
+.sheet-close{position:absolute;top:14px;right:16px;background:none;border:none;font-size:18px;color:var(--sub);cursor:pointer}
+.sheet-wrap{position:relative}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:#333;color:#fff;padding:11px 20px;border-radius:12px;font-size:13px;font-weight:700;transition:transform 0.3s;z-index:999;white-space:nowrap;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-top">
+    <a class="home-link" href="index.html" title="홈으로">🏠</a>
+    <div class="topbar-title">🏙️ KISH 생활 포털</div>
+  </div>
+  <div class="tab-row">
+    <button class="tab-btn active" onclick="goTab('map',this)">🍜 맛집지도</button>
+    <button class="tab-btn" onclick="goTab('lost',this)">📢 분실물</button>
+    <button class="tab-btn" onclick="goTab('share',this)">🎁 나눔</button>
+  </div>
+</div>
+
+<!-- MAP PAGE -->
+<div class="page active" id="pg-map">
+  <div class="map-notice" id="mapNotice" style="display:none">
+    지도가 표시되려면 구글맵 API 키가 필요해요. 이 파일 상단의 <code>GOOGLE_MAPS_API_KEY</code> 부분을 본인 키로 바꿔주세요. (Google Cloud Console → API 및 서비스 → 사용자 인증 정보 → API 키 생성, "Maps JavaScript API" 활성화)
+  </div>
+  <div id="map"></div>
+  <button class="fab" id="addPlaceBtn" onclick="togglePickMode()">📍 맛집 추가하기</button>
+  <div class="picking-hint" id="pickHint" style="display:none">지도를 눌러서 맛집 위치를 찍어주세요</div>
+
+  <div class="card">
+    <div class="card-title">등록된 맛집 (<span id="placeCount">0</span>)</div>
+    <div id="placeList"><div class="empty"><div class="empty-ico">🍜</div>아직 등록된 맛집이 없어요<br/>지도에서 첫 맛집을 추가해보세요!</div></div>
+  </div>
+</div>
+
+<!-- LOST & FOUND PAGE -->
+<div class="page" id="pg-lost">
+  <div class="card">
+    <div class="card-title">글쓰기</div>
+    <div class="seg">
+      <button class="seg-btn on" id="lfLostBtn" onclick="setLfType('lost',this)">🔍 분실했어요</button>
+      <button class="seg-btn" id="lfFoundBtn" onclick="setLfType('found',this)">🙌 주웠어요</button>
+    </div>
+    <div class="f-row"><label>제목</label><input type="text" id="lfTitle" placeholder="예) 검정 파우치를 잃어버렸어요" maxlength="40"/></div>
+    <div class="f-row"><label>설명</label><textarea id="lfDesc" rows="3" placeholder="색상, 특징, 상황 등을 적어주세요" maxlength="300"></textarea></div>
+    <div class="f-2col">
+      <div class="f-row"><label>장소</label><input type="text" id="lfLocation" placeholder="예) 3층 도서관" maxlength="30"/></div>
+      <div class="f-row"><label>연락처 (선택)</label><input type="text" id="lfContact" placeholder="예) 10학년 3반" maxlength="30"/></div>
+    </div>
+    <div class="f-row"><label>삭제용 비밀번호 (숫자 4자리)</label><input type="password" id="lfPw" inputmode="numeric" maxlength="4" placeholder="0000"/></div>
+    <div class="hint">나중에 글을 삭제하거나 완료 처리할 때 필요해요.</div>
+    <button class="btn" onclick="submitLf()">등록하기</button>
+  </div>
+  <div class="card">
+    <div class="card-title">전체 게시글 (<span id="lfCount">0</span>)</div>
+    <div id="lfList"><div class="empty"><div class="empty-ico">📭</div>등록된 글이 없어요</div></div>
+  </div>
+</div>
+
+<!-- SHARE PAGE -->
+<div class="page" id="pg-share">
+  <div class="card">
+    <div class="card-title">나눔 글쓰기</div>
+    <div class="f-row"><label>제목</label><input type="text" id="shTitle" placeholder="예) 안 쓰는 교과서 나눔합니다" maxlength="40"/></div>
+    <div class="f-row"><label>설명</label><textarea id="shDesc" rows="3" placeholder="상태, 수량, 나눔 방법 등을 적어주세요" maxlength="300"></textarea></div>
+    <div class="f-row"><label>사진 URL (선택)</label><input type="url" id="shImg" placeholder="https://..."/></div>
+    <div class="f-2col">
+      <div class="f-row"><label>연락처 (선택)</label><input type="text" id="shContact" placeholder="예) 11학년 2반" maxlength="30"/></div>
+      <div class="f-row"><label>삭제용 비밀번호</label><input type="password" id="shPw" inputmode="numeric" maxlength="4" placeholder="0000"/></div>
+    </div>
+    <button class="btn" onclick="submitShare()">등록하기</button>
+  </div>
+  <div class="card">
+    <div class="card-title">나눔 목록 (<span id="shCount">0</span>)</div>
+    <div id="shList"><div class="empty"><div class="empty-ico">🎁</div>등록된 나눔 글이 없어요</div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- PLACE FORM MODAL -->
+<div class="overlay" id="placeOverlay">
+  <div class="sheet sheet-wrap">
+    <button class="sheet-close" onclick="closePlaceForm()">✕</button>
+    <div class="sheet-title">📍 맛집 등록</div>
+    <div class="f-row"><label>가게 이름</label><input type="text" id="pName" placeholder="예) 퍼 24" maxlength="30"/></div>
+    <div class="card-title">카테고리</div>
+    <div class="chip-row" id="pCatRow">
+      <button type="button" class="chip" data-v="분식">🍢 분식</button>
+      <button type="button" class="chip" data-v="한식">🍚 한식</button>
+      <button type="button" class="chip" data-v="베트남음식">🍜 베트남음식</button>
+      <button type="button" class="chip" data-v="카페">☕ 카페</button>
+      <button type="button" class="chip" data-v="패스트푸드">🍔 패스트푸드</button>
+      <button type="button" class="chip" data-v="디저트">🍰 디저트</button>
+      <button type="button" class="chip" data-v="기타">🍴 기타</button>
+    </div>
+    <div class="f-row"><label>한줄 추천 메모</label><textarea id="pMemo" rows="2" placeholder="예) 국물이 진하고 학생 할인돼요" maxlength="150"></textarea></div>
+    <div class="f-row"><label>작성자 (선택)</label><input type="text" id="pAuthor" placeholder="예) 9학년 1반" maxlength="30"/></div>
+    <div class="f-row"><label>삭제용 비밀번호</label><input type="password" id="pPw" inputmode="numeric" maxlength="4" placeholder="0000"/></div>
+    <button class="btn" onclick="submitPlace()">등록하기</button>
+  </div>
+</div>
+
+<script>
+function G(id){return document.getElementById(id);}
+function toast(msg){ var t=G('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2200); }
+function esc(s){ var d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+function timeAgo(ts){
+  var diff=Date.now()-ts, m=Math.floor(diff/60000), h=Math.floor(m/60), d=Math.floor(h/24);
+  if(d>0) return d+'일 전'; if(h>0) return h+'시간 전'; if(m>0) return m+'분 전'; return '방금 전';
+}
+var CAT_ICO={분식:'🍢',한식:'🍚',베트남음식:'🍜',카페:'☕',패스트푸드:'🍔',디저트:'🍰',기타:'🍴'};
+
+// ── TABS ──
+function goTab(id,btn){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+  G('pg-'+id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='map' && window.google && map){ setTimeout(function(){ google.maps.event.trigger(map,'resize'); },50); }
+}
+
+/* ============ 맛집 지도 ============ */
+var map=null, pickMode=false, tempMarker=null, markers={}, places=[];
+
+function initMap(){
+  map = new google.maps.Map(G('map'), {
+    center:{lat:21.0285,lng:105.8542}, zoom:13,
+    disableDefaultUI:true, zoomControl:true
+  });
+  map.addListener('click', function(e){
+    if(!pickMode) return;
+    var lat=e.latLng.lat(), lng=e.latLng.lng();
+    if(tempMarker) tempMarker.setMap(null);
+    tempMarker = new google.maps.Marker({position:{lat:lat,lng:lng}, map:map, draggable:true, animation:google.maps.Animation.DROP});
+    openPlaceForm(lat,lng);
+  });
+  db.collection('places').onSnapshot(function(snap){
+    places = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+    places.sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);});
+    renderPlaces();
+  }, function(err){ console.warn('places listen err',err); });
+}
+window.initMap = initMap;
+window.gm_authFailure = function(){ G('mapNotice').style.display='block'; G('map').style.display='none'; };
+
+function togglePickMode(){
+  pickMode=!pickMode;
+  G('addPlaceBtn').classList.toggle('on',pickMode);
+  G('addPlaceBtn').textContent = pickMode? '✕ 취소' : '📍 맛집 추가하기';
+  G('pickHint').style.display = pickMode? 'block':'none';
+  if(!pickMode && tempMarker){ tempMarker.setMap(null); tempMarker=null; }
+}
+var pendingLatLng=null;
+function openPlaceForm(lat,lng){
+  pendingLatLng={lat:lat,lng:lng};
+  G('placeOverlay').classList.add('show');
+}
+function closePlaceForm(){
+  G('placeOverlay').classList.remove('show');
+  if(tempMarker){ tempMarker.setMap(null); tempMarker=null; }
+  pendingLatLng=null;
+  togglePickModeOff();
+}
+function togglePickModeOff(){
+  pickMode=false;
+  G('addPlaceBtn').classList.remove('on');
+  G('addPlaceBtn').textContent='📍 맛집 추가하기';
+  G('pickHint').style.display='none';
+}
+var pickedCat='';
+G('pCatRow') && G('pCatRow').addEventListener('click', function(e){
+  var b=e.target.closest('.chip'); if(!b) return;
+  document.querySelectorAll('#pCatRow .chip').forEach(function(c){c.classList.remove('on');});
+  b.classList.add('on'); pickedCat=b.dataset.v;
+});
+function submitPlace(){
+  var name=G('pName').value.trim(), memo=G('pMemo').value.trim(), author=G('pAuthor').value.trim(), pw=G('pPw').value.trim();
+  if(!pendingLatLng){ toast('지도에서 위치를 먼저 찍어주세요!'); return; }
+  if(!name){ toast('가게 이름을 입력해주세요!'); return; }
+  if(!pickedCat){ toast('카테고리를 선택해주세요!'); return; }
+  if(!/^\d{4}$/.test(pw)){ toast('비밀번호 4자리를 입력해주세요!'); return; }
+  var doc={name:name,category:pickedCat,memo:memo,author:author||'익명',lat:pendingLatLng.lat,lng:pendingLatLng.lng,pw:pw,createdAt:Date.now()};
+  db.collection('places').add(doc).then(function(){
+    toast('✅ 맛집이 등록됐어요!');
+    G('pName').value=''; G('pMemo').value=''; G('pAuthor').value=''; G('pPw').value='';
+    document.querySelectorAll('#pCatRow .chip').forEach(function(c){c.classList.remove('on');}); pickedCat='';
+    closePlaceForm();
+  }).catch(function(e){ toast('저장 실패: '+e.message); });
+}
+function renderPlaces(){
+  G('placeCount').textContent=places.length;
+  if(!places.length){
+    G('placeList').innerHTML='<div class="empty"><div class="empty-ico">🍜</div>아직 등록된 맛집이 없어요<br/>지도에서 첫 맛집을 추가해보세요!</div>';
+  } else {
+    G('placeList').innerHTML=places.map(function(p){
+      return '<div class="item">'+
+        '<div class="item-top"><div class="item-ico">'+(CAT_ICO[p.category]||'🍴')+'</div><div class="item-title">'+esc(p.name)+'</div><div class="item-badge badge-live">'+esc(p.category)+'</div></div>'+
+        '<div class="item-desc">'+esc(p.memo||'')+'</div>'+
+        '<div class="item-meta"><span>✍️ '+esc(p.author||'익명')+'</span><span>🕐 '+timeAgo(p.createdAt||0)+'</span></div>'+
+        '<div class="item-actions">'+
+          '<button class="primary" onclick="focusPlace(\''+p.id+'\')">📍 지도에서 보기</button>'+
+          '<button class="warn" onclick="deletePlace(\''+p.id+'\')">삭제</button>'+
+        '</div></div>';
+    }).join('');
+  }
+  // 마커 동기화
+  var ids=places.map(function(p){return p.id;});
+  Object.keys(markers).forEach(function(id){ if(ids.indexOf(id)===-1){ markers[id].setMap(null); delete markers[id]; } });
+  places.forEach(function(p){
+    if(markers[p.id]) return;
+    var m=new google.maps.Marker({position:{lat:p.lat,lng:p.lng}, map:map, title:p.name});
+    var iw=new google.maps.InfoWindow({content:'<b>'+(CAT_ICO[p.category]||'')+' '+esc(p.name)+'</b><br>'+esc(p.memo||'')});
+    m.addListener('click', function(){ iw.open(map,m); });
+    markers[p.id]=m;
+  });
+}
+function focusPlace(id){
+  var p=places.find(function(x){return x.id===id;}); if(!p||!map) return;
+  map.panTo({lat:p.lat,lng:p.lng}); map.setZoom(16);
+  goTab('map', document.querySelector('.tab-btn'));
+  google.maps.event.trigger(markers[id],'click');
+}
+function deletePlace(id){
+  var p=places.find(function(x){return x.id===id;}); if(!p) return;
+  var pw=prompt('삭제용 비밀번호 4자리를 입력하세요');
+  if(pw===null) return;
+  if(pw!==p.pw){ toast('비밀번호가 일치하지 않아요'); return; }
+  db.collection('places').doc(id).delete().then(function(){ toast('삭제됐어요'); });
+}
+
+/* ============ 분실물 게시판 ============ */
+var lfType='lost', lfPosts=[];
+function setLfType(t,btn){
+  lfType=t;
+  document.querySelectorAll('#pg-lost .seg-btn').forEach(function(b){b.classList.remove('on');});
+  btn.classList.add('on');
+}
+function submitLf(){
+  var title=G('lfTitle').value.trim(), desc=G('lfDesc').value.trim(), loc=G('lfLocation').value.trim(), contact=G('lfContact').value.trim(), pw=G('lfPw').value.trim();
+  if(!title){ toast('제목을 입력해주세요!'); return; }
+  if(!/^\d{4}$/.test(pw)){ toast('비밀번호 4자리를 입력해주세요!'); return; }
+  var doc={type:lfType,title:title,desc:desc,location:loc,contact:contact,pw:pw,resolved:false,createdAt:Date.now()};
+  db.collection('lostfound').add(doc).then(function(){
+    toast('✅ 등록됐어요!');
+    ['lfTitle','lfDesc','lfLocation','lfContact','lfPw'].forEach(function(id){G(id).value='';});
+  }).catch(function(e){ toast('저장 실패: '+e.message); });
+}
+db.collection('lostfound').onSnapshot(function(snap){
+  lfPosts = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+  lfPosts.sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);});
+  renderLf();
+}, function(err){ console.warn('lostfound listen err',err); });
+function renderLf(){
+  G('lfCount').textContent=lfPosts.length;
+  if(!lfPosts.length){ G('lfList').innerHTML='<div class="empty"><div class="empty-ico">📭</div>등록된 글이 없어요</div>'; return; }
+  G('lfList').innerHTML=lfPosts.map(function(p){
+    var badge = p.resolved? '<span class="item-badge badge-done">완료</span>' : (p.type==='lost'?'<span class="item-badge badge-lost">분실</span>':'<span class="item-badge badge-found">습득</span>');
+    return '<div class="item">'+
+      '<div class="item-top"><div class="item-ico">'+(p.type==='lost'?'🔍':'🙌')+'</div><div class="item-title">'+esc(p.title)+'</div>'+badge+'</div>'+
+      '<div class="item-desc">'+esc(p.desc||'')+'</div>'+
+      '<div class="item-meta">'+(p.location?'<span>📍 '+esc(p.location)+'</span>':'')+(p.contact?'<span>☎️ '+esc(p.contact)+'</span>':'')+'<span>🕐 '+timeAgo(p.createdAt||0)+'</span></div>'+
+      '<div class="item-actions">'+
+        (p.resolved?'':'<button class="primary" onclick="resolveLf(\''+p.id+'\')">완료 처리</button>')+
+        '<button class="warn" onclick="deleteLf(\''+p.id+'\')">삭제</button>'+
+      '</div></div>';
+  }).join('');
+}
+function resolveLf(id){
+  var p=lfPosts.find(function(x){return x.id===id;}); if(!p) return;
+  var pw=prompt('비밀번호 4자리를 입력하세요'); if(pw===null) return;
+  if(pw!==p.pw){ toast('비밀번호가 일치하지 않아요'); return; }
+  db.collection('lostfound').doc(id).update({resolved:true}).then(function(){ toast('완료 처리했어요'); });
+}
+function deleteLf(id){
+  var p=lfPosts.find(function(x){return x.id===id;}); if(!p) return;
+  var pw=prompt('삭제용 비밀번호 4자리를 입력하세요'); if(pw===null) return;
+  if(pw!==p.pw){ toast('비밀번호가 일치하지 않아요'); return; }
+  db.collection('lostfound').doc(id).delete().then(function(){ toast('삭제됐어요'); });
+}
+
+/* ============ 나눔 게시판 ============ */
+var shPosts=[];
+function submitShare(){
+  var title=G('shTitle').value.trim(), desc=G('shDesc').value.trim(), img=G('shImg').value.trim(), contact=G('shContact').value.trim(), pw=G('shPw').value.trim();
+  if(!title){ toast('제목을 입력해주세요!'); return; }
+  if(!/^\d{4}$/.test(pw)){ toast('비밀번호 4자리를 입력해주세요!'); return; }
+  var doc={title:title,desc:desc,imageUrl:img,contact:contact,pw:pw,status:'available',createdAt:Date.now()};
+  db.collection('shares').add(doc).then(function(){
+    toast('✅ 등록됐어요!');
+    ['shTitle','shDesc','shImg','shContact','shPw'].forEach(function(id){G(id).value='';});
+  }).catch(function(e){ toast('저장 실패: '+e.message); });
+}
+db.collection('shares').onSnapshot(function(snap){
+  shPosts = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+  shPosts.sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0);});
+  renderShare();
+}, function(err){ console.warn('shares listen err',err); });
+function renderShare(){
+  G('shCount').textContent=shPosts.length;
+  if(!shPosts.length){ G('shList').innerHTML='<div class="empty"><div class="empty-ico">🎁</div>등록된 나눔 글이 없어요</div>'; return; }
+  G('shList').innerHTML=shPosts.map(function(p){
+    var badge = p.status==='done'? '<span class="item-badge badge-done">나눔완료</span>' : '<span class="item-badge badge-live">나눔중</span>';
+    return '<div class="item">'+
+      '<div class="item-top"><div class="item-ico">🎁</div><div class="item-title">'+esc(p.title)+'</div>'+badge+'</div>'+
+      (p.imageUrl?'<img class="item-img" src="'+esc(p.imageUrl)+'" onerror="this.style.display=\'none\'"/>':'')+
+      '<div class="item-desc">'+esc(p.desc||'')+'</div>'+
+      '<div class="item-meta">'+(p.contact?'<span>☎️ '+esc(p.contact)+'</span>':'')+'<span>🕐 '+timeAgo(p.createdAt||0)+'</span></div>'+
+      '<div class="item-actions">'+
+        (p.status==='done'?'':'<button class="primary" onclick="doneShare(\''+p.id+'\')">나눔완료 처리</button>')+
+        '<button class="warn" onclick="deleteShare(\''+p.id+'\')">삭제</button>'+
+      '</div></div>';
+  }).join('');
+}
+function doneShare(id){
+  var p=shPosts.find(function(x){return x.id===id;}); if(!p) return;
+  var pw=prompt('비밀번호 4자리를 입력하세요'); if(pw===null) return;
+  if(pw!==p.pw){ toast('비밀번호가 일치하지 않아요'); return; }
+  db.collection('shares').doc(id).update({status:'done'}).then(function(){ toast('나눔완료 처리했어요'); });
+}
+function deleteShare(id){
+  var p=shPosts.find(function(x){return x.id===id;}); if(!p) return;
+  var pw=prompt('삭제용 비밀번호 4자리를 입력하세요'); if(pw===null) return;
+  if(pw!==p.pw){ toast('비밀번호가 일치하지 않아요'); return; }
+  db.collection('shares').doc(id).delete().then(function(){ toast('삭제됐어요'); });
+}
+</script>
+
+<!-- 구글맵 API: 아래 YOUR_GOOGLE_MAPS_API_KEY 부분을 본인의 구글맵 API 키로 바꿔주세요 -->
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap&loading=async" async defer onerror="G('mapNotice').style.display='block';G('map').style.display='none';"></script>
+</body>
+</html>
