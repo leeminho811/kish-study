@@ -169,9 +169,25 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 /* TOAST */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:#333;color:#fff;padding:11px 20px;border-radius:12px;font-size:13px;font-weight:700;transition:transform 0.3s;z-index:999;white-space:nowrap;pointer-events:none}
 .toast.show{transform:translateX(-50%) translateY(0)}
+
+/* INSTALL BANNER */
+.install-bar{display:none;align-items:center;gap:10px;background:#fff;border-bottom:1px solid var(--border);padding:10px 14px}
+.install-bar.show{display:flex}
+.install-ico{font-size:24px;flex-shrink:0}
+.install-txt{flex:1;font-size:12px;font-weight:700;color:var(--text);line-height:1.4}
+.install-txt b{color:var(--primary)}
+.install-btn{flex-shrink:0;padding:8px 14px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-size:12px;font-weight:800;font-family:inherit;cursor:pointer}
+.install-close{flex-shrink:0;background:none;border:none;font-size:16px;color:var(--sub);cursor:pointer;padding:4px}
 </style>
 </head>
 <body>
+
+<div class="install-bar" id="installBar">
+  <div class="install-ico">📲</div>
+  <div class="install-txt" id="installTxt"><b>앱으로 설치</b>하면 더 빠르고 편하게 써요</div>
+  <button class="install-btn" id="installBtn" onclick="doInstall()">설치하기</button>
+  <button class="install-close" onclick="dismissInstallBar()">✕</button>
+</div>
 
 <div class="topbar">
   <div class="topbar-title">🔥 KISH 열공타이머</div>
@@ -480,6 +496,51 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(function(e){ console.warn('SW register failed', e); });
   });
 }
+
+// ── PWA: 원탭 설치 배너 ──
+var deferredInstallPrompt = null;
+function isStandalone(){
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+function dismissInstallBar(){
+  G('installBar').classList.remove('show');
+  try{ sessionStorage.setItem('installBarDismissed','1'); }catch(e){}
+}
+function doInstall(){
+  if(deferredInstallPrompt){
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.finally(function(){ deferredInstallPrompt=null; dismissInstallBar(); });
+  }
+}
+(function(){
+  if(isStandalone()) return; // 이미 앱으로 설치되어 실행 중
+  var dismissed = false;
+  try{ dismissed = sessionStorage.getItem('installBarDismissed')==='1'; }catch(e){}
+  if(dismissed) return;
+
+  var ua = navigator.userAgent;
+  var isIOS = /iPhone|iPad|iPod/i.test(ua);
+  var isSafari = isIOS && /Safari/i.test(ua) && !/CriOS|FxiOS/i.test(ua);
+
+  if(isIOS){
+    // 사파리는 자동 설치 API가 없어 안내만 즉시 노출
+    if(isSafari){
+      G('installTxt').innerHTML = '<b>공유 버튼</b> → <b>"홈 화면에 추가"</b>를 누르면 앱처럼 설치돼요';
+      G('installBtn').style.display='none';
+      G('installBar').classList.add('show');
+    }
+  } else {
+    // 안드로이드 크롬 등: 네이티브 설치창을 원탭으로 띄움
+    window.addEventListener('beforeinstallprompt', function(e){
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      G('installBtn').style.display='';
+      G('installTxt').innerHTML = '<b>앱으로 설치</b>하면 더 빠르고 편하게 써요';
+      G('installBar').classList.add('show');
+    });
+  }
+  window.addEventListener('appinstalled', function(){ dismissInstallBar(); });
+})();
 </script>
 </body>
 </html>
