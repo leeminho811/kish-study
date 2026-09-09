@@ -355,6 +355,35 @@ db.collection('users').onSnapshot(function(snap){
 // ── STATE ──
 var subj='', goalMs=0, running=false, iv=null, t0=null, el=0, myKey='', myData=null, segTab='all', segCls='';
 
+// ── 내 정보 기억하기 (기기에 저장, 새로고침해도 누적 기록 바로 표시) ──
+function loadProfile(){ try{return JSON.parse(localStorage.getItem('kishProfile')||'{}');}catch(e){return{};} }
+function saveProfile(){
+  var p={grade:G('iGrade').value, cls:G('iClass').value, num:G('iNum').value, nick:G('iNick').value};
+  try{ localStorage.setItem('kishProfile', JSON.stringify(p)); }catch(e){}
+}
+function syncMyKeyFromInputs(){
+  var grade=G('iGrade').value, cls=G('iClass').value, num=G('iNum').value;
+  if(grade && cls && num){
+    myKey = grade+'_'+cls+'_'+num;
+    var all=loadAll();
+    myData = all[myKey] || null;
+    refreshMe();
+  }
+}
+function restoreProfile(){
+  var p=loadProfile();
+  if(p.grade) G('iGrade').value=p.grade;
+  if(p.cls) G('iClass').value=p.cls;
+  if(p.num) G('iNum').value=p.num;
+  if(p.nick) G('iNick').value=p.nick;
+  syncMyKeyFromInputs();
+}
+['iGrade','iClass','iNum','iNick'].forEach(function(id){
+  G(id).addEventListener('input', function(){ saveProfile(); syncMyKeyFromInputs(); });
+  G(id).addEventListener('change', function(){ saveProfile(); syncMyKeyFromInputs(); });
+});
+restoreProfile();
+
 // ── TABS ──
 function goTab(id,btn){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
