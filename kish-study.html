@@ -550,11 +550,17 @@ function doInstall(){
   var ua = navigator.userAgent;
   var isIOS = /iPhone|iPad|iPod/i.test(ua);
   var isSafari = isIOS && /Safari/i.test(ua) && !/CriOS|FxiOS/i.test(ua);
+  // 카카오톡/네이버/인스타 등 인앱 브라우저는 설치 기능 자체가 없음
+  var isInApp = /KAKAOTALK|NAVER\(inapp|Line\/|FBAN|FBAV|Instagram|DaumApps|MicroMessenger/i.test(ua);
 
-  if(isIOS){
+  if(isInApp){
+    G('installTxt').innerHTML = '<b>이 브라우저에서는 설치가 안 돼요.</b> 우측 상단 메뉴(⋮/•••)에서 "다른 브라우저로 열기"를 눌러 '+(isIOS?'<b>Safari</b>':'<b>Chrome</b>')+'로 열어주세요';
+    G('installBtn').style.display='none';
+    G('installBar').classList.add('show');
+  } else if(isIOS){
     // 사파리는 자동 설치 API가 없어 안내만 즉시 노출
     if(isSafari){
-      G('installTxt').innerHTML = '<b>공유 버튼</b> → <b>"홈 화면에 추가"</b>를 누르면 앱처럼 설치돼요';
+      G('installTxt').innerHTML = '<b>공유 버튼</b> → <b>"홈 화면에 추가"</b>를 누르면 앱처럼 설치돼요 (꼭 Safari로 열어주세요)';
       G('installBtn').style.display='none';
       G('installBar').classList.add('show');
     }
@@ -564,7 +570,7 @@ function doInstall(){
       e.preventDefault();
       deferredInstallPrompt = e;
       G('installBtn').style.display='';
-      G('installTxt').innerHTML = '<b>앱으로 설치</b>하면 더 빠르고 편하게 써요';
+      G('installTxt').innerHTML = '<b>앱으로 설치</b>하면 더 빠르고 편하게 써요 (Chrome 권장)';
       G('installBar').classList.add('show');
     });
   }
