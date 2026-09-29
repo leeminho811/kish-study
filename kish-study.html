@@ -25,6 +25,8 @@ firebase.initializeApp({
   appId:"1:948001529630:web:2d57be7b07dfc5206af30f"
 });
 var db = firebase.firestore();
+// 오프라인일 때 저장한 기록도 앱을 껐다 켜도 남아있다가 연결되면 전송됨
+db.enablePersistence({synchronizeTabs:true}).catch(function(e){ console.warn('persistence off', e.code); });
 </script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -202,7 +204,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 <div class="page active" id="pg-timer">
   <div class="timer-card">
     <div id="timerNum" class="timer-num">00:00:00</div>
-    <div class="timer-subj" id="timerSubjWrap" style="display:none" id="timerSubjWrap">
+    <div class="timer-subj" id="timerSubjWrap" style="display:none">
       <span id="timerSubjTxt"></span>
     </div>
     <div class="timer-status"><span class="dot" id="dot"></span><span id="statusTxt">대기 중</span></div>
@@ -323,37 +325,65 @@ var TITLES = [
 ];
 
 // ── HELPERS ──
-function ttl(ms){ return [...TITLES].reverse().find(function(x){return ms>=x.min;}).t; }
+function ttl(ms){ ms=Number(ms)||0; return [...TITLES].reverse().find(function(x){return ms>=x.min;}).t; }
 function hms(ms){ var s=Math.floor(ms/1000); return [Math.floor(s/3600),Math.floor((s%3600)/60),s%60].map(function(v){return ('0'+v).slice(-2);}).join(':'); }
-function hm(ms){ var s=Math.floor((ms||0)/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60); return h+'시간 '+('0'+m).slice(-2)+'분'; }
-function today(){ return new Date().toISOString().slice(0,10); }
+function hm(ms){ var s=Math.floor((Number(ms)||0)/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60); return h+'시간 '+('0'+m).slice(-2)+'분'; }
+// 기기 현지 시간(하노이) 기준 날짜. toISOString()은 UTC라 새벽 0~7시가 전날로 잡힘
+function dateKey(d){ return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+function today(){ return dateKey(new Date()); }
 function topS(subj){ if(!subj)return''; var e=Object.entries(subj).sort(function(a,b){return b[1]-a[1];})[0]; return e?ICO[e[0]]||'':''; }
-function streak(sess){ if(!sess)return 0; var n=0,d=new Date(); for(;;){ var k=d.toISOString().slice(0,10); if(!sess[k])break; n++; d.setDate(d.getDate()-1); } return n; }
-function toast(msg){ var t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2500); }
+// 오늘 아직 공부 안 했으면 어제부터 이어서 셈 (아침에 연속 기록이 0일로 보이지 않게)
+function streak(sess){
+  if(!sess)return 0;
+  var n=0, d=new Date();
+  if(!sess[dateKey(d)]) d.setDate(d.getDate()-1);
+  while(sess[dateKey(d)]){ n++; d.setDate(d.getDate()-1); }
+  return n;
+}
+function toast(msg){ var t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(function(){t.classList.remove('show');},2500); }
 function G(id){return document.getElementById(id);}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+// "01", "1.0" 등을 "1"로 통일 (다른 사람으로 저장되는 것 방지)
+function normNum(v){ var n=parseInt(v,10); return (n>=1 && n<=40) ? String(n) : ''; }
+function classKey(r){ return (r.grade||'')+' '+(r.cls||''); }
 
 // ── FIREBASE + LOCAL CACHE ──
 // localStorage를 캐시로 쓰고 Firebase를 실시간 소스로 사용
 function loadAll(){ try{return JSON.parse(localStorage.getItem('kish2')||'{}');}catch(e){return{};} }
-function saveLocal(key,data){ var all=loadAll(); all[key]=data; localStorage.setItem('kish2',JSON.stringify(all)); }
-
-function saveMe(key,data,cb){
-  saveLocal(key,data);
-  db.collection('users').doc(key).set(data).then(function(){ if(cb)cb(); }).catch(function(e){ console.error('FB save err',e); if(cb)cb(); });
+function saveAll(all){ try{ localStorage.setItem('kish2',JSON.stringify(all)); }catch(e){} }
+// 이상한 값이 들어와도 화면이 깨지지 않게 정리
+function cleanRecord(x){
+  x=x||{};
+  return {name:String(x.name||''), grade:String(x.grade||''), cls:String(x.cls||''), num:String(x.num||''),
+    total:Number(x.total)||0, subj:(x.subj&&typeof x.subj==='object')?x.subj:{}, sess:(x.sess&&typeof x.sess==='object')?x.sess:{}};
 }
 
-// 실시간 랭킹 리스너
+// 서버에서 더하기(increment)로 저장 → 캐시가 오래됐거나 폰/PC를 같이 써도 기록이 덮어써지지 않음
+function saveSession(key,info,subjName,days,ms,onDone){
+  var inc=firebase.firestore.FieldValue.increment;
+  var s={}; s[subjName]=inc(ms);
+  var d={}; Object.keys(days).forEach(function(k){ d[k]=inc(days[k]); });
+  db.collection('users').doc(key).set({name:info.name,grade:info.grade,cls:info.cls,num:info.num,total:inc(ms),subj:s,sess:d},{merge:true})
+    .then(function(){ onDone(true); })
+    .catch(function(e){ console.error('FB save err',e); onDone(false); });
+}
+
+// 실시간 랭킹 리스너 (서버 데이터로 캐시를 통째로 교체 → 서버에서 지운 기록은 화면에서도 사라짐)
 db.collection('users').onSnapshot(function(snap){
-  var all = loadAll();
-  snap.docs.forEach(function(d){ all[d.id]=d.data(); });
-  localStorage.setItem('kish2',JSON.stringify(all));
+  if(snap.metadata.fromCache && snap.empty) return; // 오프라인 첫 실행 때 빈 결과로 기존 캐시를 지우지 않게
+  var all = {};
+  snap.docs.forEach(function(d){ all[d.id]=cleanRecord(d.data()); });
+  saveAll(all);
+  if(segTab==='cls') buildClsFilter();
   renderRank();
-  // 내 데이터도 최신화
-  if(myKey && all[myKey]){ myData=all[myKey]; refreshMe(); }
-}, function(err){ console.warn('FB listen err',err); });
+  if(myKey){ myData=all[myKey]||null; refreshMe(); }
+}, function(err){
+  console.warn('FB listen err',err);
+  toast('⚠️ 서버 연결에 문제가 있어요. 잠시 후 다시 열어주세요');
+});
 
 // ── STATE ──
-var subj='', goalMs=0, running=false, iv=null, t0=null, el=0, myKey='', myData=null, segTab='all', segCls='';
+var subj='', goalMs=0, running=false, iv=null, t0=null, el=0, myKey='', myData=null, segTab='all', segCls='', runInfo=null;
 
 // ── 내 정보 기억하기 (기기에 저장, 새로고침해도 누적 기록 바로 표시) ──
 function loadProfile(){ try{return JSON.parse(localStorage.getItem('kishProfile')||'{}');}catch(e){return{};} }
@@ -362,13 +392,16 @@ function saveProfile(){
   try{ localStorage.setItem('kishProfile', JSON.stringify(p)); }catch(e){}
 }
 function syncMyKeyFromInputs(){
-  var grade=G('iGrade').value, cls=G('iClass').value, num=G('iNum').value;
+  if(running) return; // 공부 중에는 내 정보가 바뀌지 않음
+  var grade=G('iGrade').value, cls=G('iClass').value, num=normNum(G('iNum').value);
   if(grade && cls && num){
     myKey = grade+'_'+cls+'_'+num;
-    var all=loadAll();
-    myData = all[myKey] || null;
-    refreshMe();
+    var rec = loadAll()[myKey];
+    myData = rec ? cleanRecord(rec) : null;
+  } else {
+    myKey=''; myData=null;
   }
+  refreshMe();
 }
 function restoreProfile(){
   var p=loadProfile();
@@ -397,10 +430,16 @@ function goTab(id,btn){
 // ── GOAL ──
 function setGoal(btn,h){
   goalMs=h*3600000;
-  document.querySelectorAll('.chip').forEach(function(b){b.classList.remove('on');});
+  document.querySelectorAll('.goal-chips .chip').forEach(function(b){b.classList.remove('on');});
   btn.classList.add('on');
   G('goalTxt').textContent='목표: '+h+'시간';
+  try{ localStorage.setItem('kishGoal', String(h)); }catch(e){}
   updProgress();
+}
+function restoreGoal(){
+  var h=0; try{ h=parseInt(localStorage.getItem('kishGoal'),10)||0; }catch(e){}
+  if(!h) return;
+  document.querySelectorAll('.goal-chips .chip').forEach(function(b){ if(parseInt(b.textContent,10)===h) setGoal(b,h); });
 }
 function updProgress(){
   if(!goalMs){return;}
@@ -414,70 +453,126 @@ function updProgress(){
 // ── SUBJECT ──
 function pickSubj(btn,name){
   subj=name;
-  document.querySelectorAll('.subj-btn').forEach(function(b){b.classList.remove('on');});
-  btn.classList.add('on');
-  if(running){ G('timerSubjTxt').textContent=ICO[name]+' '+name; }
+  document.querySelectorAll('.subj-btn').forEach(function(b){b.classList.toggle('on', b===btn);});
+  if(running && runInfo){
+    G('timerSubjTxt').textContent=ICO[name]+' '+name;
+    runInfo.subj=name; saveRunning(runInfo);
+  }
 }
 
 // ── REFRESH MY UI ──
 function refreshMe(){
-  if(!myData)return;
-  var todayMs=(myData.sess&&myData.sess[today()])||0;
+  var d=myData||{};
+  var todayMs=(d.sess&&d.sess[today()])||0;
   G('stToday').textContent=hm(todayMs);
-  G('stTotal').textContent=hm(myData.total||0);
-  G('stStreak').textContent=streak(myData.sess)+'일';
-  G('myBadge').textContent=ttl(myData.total||0);
-  updProgress();
+  G('stTotal').textContent=hm(d.total||0);
+  G('stStreak').textContent=streak(d.sess)+'일';
+  G('myBadge').textContent=ttl(d.total||0);
+  if(goalMs) updProgress();
+  if(G('pg-stats').classList.contains('active')) renderStats();
 }
 function renderStats(){
-  if(!myData){return;}
-  var subjects=myData.subj||{};
-  var entries=Object.entries(subjects).sort(function(a,b){return b[1]-a[1];});
+  var d=myData||{};
+  var subjects=d.subj||{};
+  var entries=Object.entries(subjects).filter(function(e){return Number(e[1])>0;}).sort(function(a,b){return b[1]-a[1];});
   if(!entries.length){ G('subjBars').innerHTML='<div class="empty"><div class="empty-ico">📊</div>아직 기록이 없어요</div>'; }
   else{
     var mx=entries[0][1]||1;
     G('subjBars').innerHTML=entries.map(function(e){
-      return '<div class="subj-bar-row"><div class="sbr-name">'+(ICO[e[0]]||'')+' '+e[0]+'</div><div class="sbr-bg"><div class="sbr-fill" style="width:'+Math.round(e[1]/mx*100)+'%"></div></div><div class="sbr-time">'+hm(e[1])+'</div></div>';
+      return '<div class="subj-bar-row"><div class="sbr-name">'+(ICO[e[0]]||'')+' '+esc(e[0])+'</div><div class="sbr-bg"><div class="sbr-fill" style="width:'+Math.round(e[1]/mx*100)+'%"></div></div><div class="sbr-time">'+hm(e[1])+'</div></div>';
     }).join('');
   }
-  var sess=myData.sess||{}, cells=[];
-  for(var i=34;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);var k=d.toISOString().slice(0,10),ms=sess[k]||0,lv=ms===0?'':ms<3600000?'l1':ms<7200000?'l2':'l3';cells.push('<div class="gc '+lv+'" title="'+k+': '+hm(ms)+'"></div>');}
+  var sess=d.sess||{}, cells=[];
+  for(var i=34;i>=0;i--){
+    var day=new Date(); day.setDate(day.getDate()-i);
+    var k=dateKey(day), ms=Number(sess[k])||0, lv=ms===0?'':ms<3600000?'l1':ms<7200000?'l2':'l3';
+    cells.push('<div class="gc '+lv+'" title="'+k+': '+hm(ms)+'"></div>');
+  }
   G('grass').innerHTML=cells.join('');
 }
 
 // ── TIMER ──
-function toggleTimer(){
-  var grade=G('iGrade').value, cls=G('iClass').value, num=G('iNum').value;
-  var nick=(G('iNick').value||'').trim();
-  var name=nick||(grade+' '+cls+' '+num+'번');
-  myKey=grade+'_'+cls+'_'+num;
-  if(!running){
-    if(!grade||!cls||!num){toast('학년, 반, 번호를 입력해주세요!');return;}
-    if(!subj){toast('공부할 과목을 선택해주세요!');return;}
-    running=true; t0=Date.now(); el=0;
-    iv=setInterval(function(){el=Date.now()-t0; G('timerNum').textContent=hms(el);},500);
-    G('startBtn').textContent='⏹ 공부 종료'; G('startBtn').classList.add('stop');
-    G('dot').classList.add('on'); G('statusTxt').textContent='공부 중...';
-    var sw=G('timerSubjWrap'); sw.style.display='inline-flex'; G('timerSubjTxt').textContent=ICO[subj]+' '+subj;
-    ['iGrade','iClass','iNum','iNick'].forEach(function(id){G(id).disabled=true;});
-  } else {
-    running=false; clearInterval(iv); el=Date.now()-t0;
-    G('timerNum').textContent='00:00:00';
-    G('startBtn').textContent='⏱ 공부 시작'; G('startBtn').classList.remove('stop');
-    G('dot').classList.remove('on'); G('statusTxt').textContent='대기 중';
-    G('timerSubjWrap').style.display='none';
-    ['iGrade','iClass','iNum','iNick'].forEach(function(id){G(id).disabled=false;});
-    // 저장
-    var t=today(), saved=el;
-    var all=loadAll();
-    var prev=all[myKey]||{name:name,grade:grade,cls:cls,num:num,total:0,subj:{},sess:{}};
-    prev.name=name; prev.total=(prev.total||0)+saved;
-    prev.subj=prev.subj||{}; prev.subj[subj]=(prev.subj[subj]||0)+saved;
-    prev.sess=prev.sess||{}; prev.sess[t]=(prev.sess[t]||0)+saved;
-    myData=prev; refreshMe();
-    toast('✅ '+subj+' '+hm(saved)+' 저장 중...');
-    saveMe(myKey,prev,function(){ toast('✅ '+subj+' '+hm(saved)+' 저장 완료!'); });
+// 공부 중인 타이머는 기기에 저장 → 앱이 꺼지거나 새로고침돼도 이어서 계속됨
+var LONG_SESSION = 8*3600000; // 이보다 오래 켜져 있으면 저장 전에 한 번 확인 (깜빡하고 안 끈 경우 대비)
+function loadRunning(){ try{return JSON.parse(localStorage.getItem('kishRunning')||'null');}catch(e){return null;} }
+function saveRunning(r){ try{ localStorage.setItem('kishRunning', JSON.stringify(r)); }catch(e){} }
+function clearRunning(){ try{ localStorage.removeItem('kishRunning'); }catch(e){} }
+
+function setRunningUI(on){
+  G('startBtn').textContent = on ? '⏹ 공부 종료' : '⏱ 공부 시작';
+  G('startBtn').classList.toggle('stop', on);
+  G('dot').classList.toggle('on', on);
+  G('statusTxt').textContent = on ? '공부 중...' : '대기 중';
+  G('timerSubjWrap').style.display = on ? 'inline-flex' : 'none';
+  if(on) G('timerSubjTxt').textContent = ICO[subj]+' '+subj;
+  else G('timerNum').textContent = '00:00:00';
+  ['iGrade','iClass','iNum','iNick'].forEach(function(id){ G(id).disabled = on; });
+}
+function startTicking(){
+  clearInterval(iv);
+  var tick=function(){ el=Date.now()-t0; G('timerNum').textContent=hms(Math.max(0,el)); };
+  tick(); iv=setInterval(tick,500);
+}
+function stopRunning(){ running=false; clearInterval(iv); clearRunning(); runInfo=null; setRunningUI(false); }
+
+// 자정을 넘긴 공부는 날짜별로 나눠서 기록
+function splitByDay(start,end){
+  var out={}, cur=start;
+  while(cur<end){
+    var next=new Date(cur); next.setHours(24,0,0,0);
+    var segEnd=Math.min(end, next.getTime()), k=dateKey(new Date(cur));
+    out[k]=(out[k]||0)+(segEnd-cur);
+    cur=segEnd;
   }
+  return out;
+}
+
+function toggleTimer(){
+  if(!running){
+    var grade=G('iGrade').value, cls=G('iClass').value, rawNum=G('iNum').value, num=normNum(rawNum);
+    if(!grade||!cls||!rawNum){toast('학년, 반, 번호를 입력해주세요!');return;}
+    if(!num){toast('번호는 1~40 사이 숫자로 입력해주세요!');return;}
+    if(!subj){toast('공부할 과목을 선택해주세요!');return;}
+    G('iNum').value=num; saveProfile();
+    var nick=(G('iNick').value||'').trim();
+    myKey=grade+'_'+cls+'_'+num;
+    running=true; t0=Date.now(); el=0;
+    runInfo={t0:t0, subj:subj, key:myKey, name:nick||(grade+' '+cls+' '+num+'번'), grade:grade, cls:cls, num:num};
+    saveRunning(runInfo);
+    setRunningUI(true);
+    startTicking();
+  } else {
+    var info=runInfo, end=Date.now(), saved=end-info.t0;
+    if(saved>LONG_SESSION && !confirm('타이머가 '+hm(saved)+' 동안 켜져 있었어요.\n정말 이만큼 공부했나요?\n\n확인: 전부 저장\n취소: 이번 기록은 저장하지 않음')){
+      stopRunning(); toast('이번 기록은 저장하지 않았어요'); return;
+    }
+    stopRunning();
+    if(saved<=0) return;
+    var days=splitByDay(info.t0,end), sKey=info.key, sSubj=info.subj;
+    // 서버 응답 전에 화면부터 바로 반영
+    var all=loadAll(), prev=cleanRecord(all[sKey]);
+    prev.name=info.name; prev.grade=info.grade; prev.cls=info.cls; prev.num=info.num;
+    prev.total+=saved;
+    prev.subj[sSubj]=(Number(prev.subj[sSubj])||0)+saved;
+    Object.keys(days).forEach(function(k){ prev.sess[k]=(Number(prev.sess[k])||0)+days[k]; });
+    all[sKey]=prev; saveAll(all);
+    myKey=sKey; myData=prev; refreshMe(); renderRank();
+    toast('⏳ '+sSubj+' '+hm(saved)+' 저장 중...');
+    saveSession(sKey, info, sSubj, days, saved, function(ok){
+      toast(ok ? '✅ '+sSubj+' '+hm(saved)+' 저장 완료!' : '⚠️ 저장 실패! 인터넷 연결을 확인하고 다시 시도해주세요');
+    });
+  }
+}
+function restoreRunning(){
+  var r=loadRunning();
+  if(!r || !r.t0 || !r.key || !r.subj) return;
+  runInfo=r; running=true; t0=r.t0; subj=r.subj; myKey=r.key;
+  G('iGrade').value=r.grade; G('iClass').value=r.cls; G('iNum').value=r.num;
+  document.querySelectorAll('.subj-btn').forEach(function(b){ b.classList.toggle('on', b.getAttribute('onclick').indexOf("'"+subj+"'")>=0); });
+  var rec=loadAll()[myKey]; myData=rec?cleanRecord(rec):null; refreshMe();
+  setRunningUI(true);
+  startTicking();
+  toast('⏱ 진행 중이던 타이머를 이어서 계속해요');
 }
 
 // ── RANK ──
@@ -489,16 +584,19 @@ function switchSeg(tab,btn){
   if(tab==='cls') buildClsFilter();
   renderRank();
 }
+// 반별 랭킹은 "학년+반" 기준 (7학년 3반과 12학년 3반이 섞이지 않게)
 function buildClsFilter(){
-  var all=loadAll(), classes=[...new Set(Object.values(all).map(function(r){return r.cls;}))].filter(Boolean).sort();
-  if(!segCls&&classes.length)segCls=classes[0];
-  G('clsFilter').innerHTML=classes.map(function(c){return '<button class="cls-chip'+(c===segCls?' on':'')+'" onclick="pickCls(\''+c+'\')">' +c+'</button>';}).join('');
+  var all=loadAll(), classes=[...new Set(Object.values(all).filter(function(r){return r.grade&&r.cls;}).map(classKey))];
+  classes.sort(function(a,b){ var pa=a.match(/\d+/g)||[0,0], pb=b.match(/\d+/g)||[0,0]; return (pa[0]-pb[0])||(pa[1]-pb[1]); });
+  var mine=(G('iGrade').value&&G('iClass').value)?G('iGrade').value+' '+G('iClass').value:'';
+  if(!segCls || classes.indexOf(segCls)<0) segCls = classes.indexOf(mine)>=0 ? mine : (classes[0]||'');
+  G('clsFilter').innerHTML=classes.map(function(c){return '<button class="cls-chip'+(c===segCls?' on':'')+'" data-c="'+esc(c)+'" onclick="pickCls(this.dataset.c)">'+esc(c)+'</button>';}).join('');
 }
 function pickCls(c){segCls=c;buildClsFilter();renderRank();}
 function renderRank(){
-  var all=loadAll(), records=Object.values(all);
-  if(segTab==='cls') records=records.filter(function(r){return r.cls===segCls;});
-  records.sort(function(a,b){return (b.total||0)-(a.total||0);});
+  var all=loadAll(), records=Object.values(all).map(cleanRecord);
+  if(segTab==='cls') records=records.filter(function(r){return classKey(r)===segCls;});
+  records.sort(function(a,b){return b.total-a.total;});
   if(!records.length){
     G('top3').innerHTML='';
     G('rankList').innerHTML='<div class="empty"><div class="empty-ico">📭</div>공부 기록이 없어요</div>';
@@ -508,15 +606,17 @@ function renderRank(){
   var order=top.length>=3?[top[1],top[0],top[2]]:top.length===2?[top[1],top[0]]:[top[0]];
   var crowns=['🥈','🥇','🥉'], rnks=top.length>=3?[2,1,3]:top.length===2?[2,1]:[1];
   G('top3').innerHTML='<div class="top3">'+order.map(function(r,i){
-    return '<div class="t3'+(rnks[i]===1?' gold':'')+'"><div class="t3-crown">'+crowns[i]+'</div><div class="t3-rank">'+rnks[i]+'위</div><div class="t3-name">'+(r.name||'')+'</div><div class="t3-info">'+(r.grade||'')+' '+(r.cls||'')+' '+(r.num||'')+'번</div><div class="t3-time">'+hm(r.total)+'</div><div class="t3-ico">'+topS(r.subj)+'</div><div class="t3-ttl">'+ttl(r.total||0)+'</div></div>';
+    return '<div class="t3'+(rnks[i]===1?' gold':'')+'"><div class="t3-crown">'+crowns[i]+'</div><div class="t3-rank">'+rnks[i]+'위</div><div class="t3-name">'+esc(r.name)+'</div><div class="t3-info">'+esc(r.grade+' '+r.cls+' '+r.num+'번')+'</div><div class="t3-time">'+hm(r.total)+'</div><div class="t3-ico">'+topS(r.subj)+'</div><div class="t3-ttl">'+ttl(r.total)+'</div></div>';
   }).join('')+'</div>';
   var mx=records[0].total||1;
   G('rankList').innerHTML=records.slice(3).map(function(r,i){
-    return '<div class="rank-item"><div class="rk-num">'+(i+4)+'</div><div class="rk-info"><div><span class="rk-name">'+(r.name||'')+'</span><span class="rk-badge">'+(r.grade||'')+' '+(r.cls||'')+' '+(r.num||'')+'번</span><span class="rk-ico">'+topS(r.subj)+'</span></div><div class="rk-bar-bg"><div class="rk-bar" style="width:'+Math.round((r.total||0)/mx*100)+'%"></div></div></div><div class="rk-right"><div class="rk-time">'+hm(r.total)+'</div><div class="rk-ttl">'+ttl(r.total||0)+'</div></div></div>';
+    return '<div class="rank-item"><div class="rk-num">'+(i+4)+'</div><div class="rk-info"><div><span class="rk-name">'+esc(r.name)+'</span><span class="rk-badge">'+esc(r.grade+' '+r.cls+' '+r.num+'번')+'</span><span class="rk-ico">'+topS(r.subj)+'</span></div><div class="rk-bar-bg"><div class="rk-bar" style="width:'+Math.round(r.total/mx*100)+'%"></div></div></div><div class="rk-right"><div class="rk-time">'+hm(r.total)+'</div><div class="rk-ttl">'+ttl(r.total)+'</div></div></div>';
   }).join('');
 }
 
 // INIT
+restoreRunning();
+restoreGoal();
 renderRank();
 
 // ── PWA: SERVICE WORKER ──

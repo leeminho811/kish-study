@@ -12,6 +12,9 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:#f0f2f5;color:
 h1{font-size:22px;font-weight:900;margin-bottom:24px;text-align:center}
 .card{display:block;background:#fff;border-radius:16px;padding:20px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.08);text-decoration:none;color:inherit;transition:transform 0.15s}
 .card:active{transform:scale(0.98)}
+.card.soon{opacity:0.55}
+.card.soon:active{transform:none}
+.soon-tag{display:inline-block;font-size:11px;font-weight:800;color:#fff;background:#aaa;padding:2px 8px;border-radius:20px;vertical-align:middle;margin-left:4px}
 .ico{font-size:28px;margin-bottom:8px}
 .t{font-size:16px;font-weight:800;margin-bottom:4px}
 .d{font-size:13px;color:#888}
@@ -29,11 +32,11 @@ h1{font-size:22px;font-weight:900;margin-bottom:24px;text-align:center}
     <div class="t">KISH 열공타이머</div>
     <div class="d">공부 시간 인증 · 랭킹 · 스트릭</div>
   </a>
-  <a class="card" href="kish-portal.html">
+  <div class="card soon">
     <div class="ico">🏙️</div>
-    <div class="t">KISH 생활 포털</div>
+    <div class="t">KISH 생활 포털 <span class="soon-tag">준비 중</span></div>
     <div class="d">맛집 지도 · 분실물 게시판 · 나눔 게시판</div>
-  </a>
+  </div>
 
   <div class="qr-card">
     <img src="qr-kish-study.png" alt="열공타이머 QR코드"/>
