@@ -349,8 +349,10 @@ function classKey(r){ return (r.grade||'')+' '+(r.cls||''); }
 
 // ── FIREBASE + LOCAL CACHE ──
 // localStorage를 캐시로 쓰고 Firebase를 실시간 소스로 사용
-function loadAll(){ try{return JSON.parse(localStorage.getItem('kish2')||'{}');}catch(e){return{};} }
-function saveAll(all){ try{ localStorage.setItem('kish2',JSON.stringify(all)); }catch(e){} }
+// 서버에서 받은 최신 데이터는 메모리에 두고 우선 사용 (localStorage는 앱 켤 때 바로 보여주기용)
+var liveAll=null;
+function loadAll(){ if(liveAll) return liveAll; try{return JSON.parse(localStorage.getItem('kish2')||'{}');}catch(e){return{};} }
+function saveAll(all){ if(liveAll) liveAll=all; try{ localStorage.setItem('kish2',JSON.stringify(all)); }catch(e){} }
 // 이상한 값이 들어와도 화면이 깨지지 않게 정리
 function cleanRecord(x){
   x=x||{};
@@ -373,7 +375,7 @@ db.collection('users').onSnapshot(function(snap){
   if(snap.metadata.fromCache && snap.empty) return; // 오프라인 첫 실행 때 빈 결과로 기존 캐시를 지우지 않게
   var all = {};
   snap.docs.forEach(function(d){ all[d.id]=cleanRecord(d.data()); });
-  saveAll(all);
+  liveAll=all; saveAll(all);
   if(segTab==='cls') buildClsFilter();
   renderRank();
   if(myKey){ myData=all[myKey]||null; refreshMe(); }
