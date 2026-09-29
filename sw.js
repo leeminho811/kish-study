@@ -1,4 +1,4 @@
-var CACHE_NAME = 'kish-study-v2';
+var CACHE_NAME = 'kish-study-v3';
 var APP_SHELL = [
   './kish-study.html',
   './manifest.json',
@@ -32,9 +32,10 @@ self.addEventListener('fetch', function(e){
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
 
   // 페이지(HTML)는 항상 최신 버전 먼저, 오프라인일 때만 저장된 버전
+  // (no-cache: 브라우저가 10분간 들고 있는 옛 페이지 대신 서버에 새 버전이 있는지 매번 확인)
   if (e.request.mode === 'navigate') {
     e.respondWith(
-      fetch(e.request).then(function(res){ return putInCache(e.request, res); })
+      fetch(e.request.url, {cache:'no-cache', credentials:'same-origin'}).then(function(res){ return putInCache(e.request, res); })
         .catch(function(){
           return caches.match(e.request, {ignoreSearch:true}).then(function(c){ return c || caches.match('./kish-study.html'); });
         })
