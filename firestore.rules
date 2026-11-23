@@ -1,0 +1,110 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ───────── 공통 도구 ─────────
+    function signedIn() { return request.auth != null; }
+    function str(v, max) { return v is string && v.size() <= max; }
+    function filled(v, max) { return str(v, max) && v.size() > 0; }
+    function ownsExisting() { return signedIn() && resource.data.ownerUid == request.auth.uid; }
+    function changedOnly(fields) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields); }
+
+    // 새 글: 본인 이름으로, 서버 시간으로, 30초 제한 기록과 함께 저장해야 함
+    function newPost() {
+      return signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.reporters == []
+        && getAfter(/databases/$(database)/documents/limits/$(request.auth.uid)).data.last == request.time;
+    }
+
+    // 남의 글에는 "신고"만 가능: 신고자 목록에 자기 자신을 한 번만 추가
+    function reportOnly() {
+      return signedIn() && changedOnly(['reporters'])
+        && !(request.auth.uid in resource.data.reporters)
+        && request.resource.data.reporters == resource.data.reporters.concat([request.auth.uid]);
+    }
+
+    // ───────── 열공타이머 (로그인 없음) ─────────
+    // 누적 시간은 늘어나기만 하고, 한 번에 24시간까지만 더할 수 있음. 삭제는 콘솔에서만.
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(['name','grade','cls','num','total','subj','sess'])
+        && str(request.resource.data.name, 30)
+        && request.resource.data.total is number
+        && request.resource.data.total >= (resource == null ? 0 : resource.data.total)
+        && request.resource.data.total <= (resource == null ? 0 : resource.data.total) + 86400000;
+    }
+
+    // ───────── 생활 포털 ─────────
+    // 글 도배 방지: 한 기기당 30초에 글 1개
+    match /limits/{userId} {
+      allow write: if signedIn() && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['last'])
+        && request.resource.data.last == request.time
+        && (resource == null || request.time > resource.data.last + duration.value(30, 's'));
+    }
+
+    match /places/{id} {
+      allow read: if true;
+      allow create: if newPost()
+        && request.resource.data.keys().hasOnly(['name','category','memo','author','lat','lng','ownerUid','createdAt','likes','reporters'])
+        && filled(request.resource.data.name, 30)
+        && request.resource.data.category in ['분식','한식','베트남음식','카페','패스트푸드','디저트','기타']
+        && str(request.resource.data.memo, 150)
+        && str(request.resource.data.author, 20)
+        && request.resource.data.lat is number && request.resource.data.lng is number
+        && request.resource.data.likes == [];
+      // 추천은 자기 자신만 넣었다 뺄 수 있음
+      allow update: if reportOnly() || (signedIn() && changedOnly(['likes']) && (
+          (!(request.auth.uid in resource.data.likes) && request.resource.data.likes == resource.data.likes.concat([request.auth.uid]))
+          || ((request.auth.uid in resource.data.likes) && request.resource.data.likes == resource.data.likes.removeAll([request.auth.uid]))
+        ));
+      allow delete: if ownsExisting();
+    }
+
+    match /lostfound/{id} {
+      allow read: if true;
+      allow create: if newPost()
+        && request.resource.data.keys().hasOnly(['type','title','desc','location','contact','thumb','hasPhoto','resolved','ownerUid','createdAt','reporters'])
+        && request.resource.data.type in ['lost','found']
+        && filled(request.resource.data.title, 40)
+        && str(request.resource.data.desc, 300)
+        && str(request.resource.data.location, 30)
+        && str(request.resource.data.contact, 30)
+        && str(request.resource.data.thumb, 40000)
+        && request.resource.data.hasPhoto is bool
+        && request.resource.data.resolved == false;
+      allow update: if reportOnly()
+        || (ownsExisting() && changedOnly(['resolved']) && request.resource.data.resolved == true);
+      allow delete: if ownsExisting();
+    }
+
+    match /shares/{id} {
+      allow read: if true;
+      allow create: if newPost()
+        && request.resource.data.keys().hasOnly(['title','desc','contact','thumb','hasPhoto','done','ownerUid','createdAt','reporters'])
+        && filled(request.resource.data.title, 40)
+        && str(request.resource.data.desc, 300)
+        && str(request.resource.data.contact, 30)
+        && str(request.resource.data.thumb, 40000)
+        && request.resource.data.hasPhoto is bool
+        && request.resource.data.done == false;
+      allow update: if reportOnly()
+        || (ownsExisting() && changedOnly(['done']) && request.resource.data.done == true);
+      allow delete: if ownsExisting();
+    }
+
+    // 글에 붙은 큰 사진 (목록에는 작은 사진만, 누르면 이걸 불러옴)
+    match /photos/{id} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['data','ownerUid'])
+        && request.resource.data.ownerUid == request.auth.uid
+        && str(request.resource.data.data, 700000);
+      allow delete: if signedIn() && (resource == null || resource.data.ownerUid == request.auth.uid);
+    }
+
+    // 위에 없는 곳은 전부 막힘
+  }
+}
