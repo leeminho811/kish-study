@@ -362,10 +362,10 @@ var placeCat='all', placeSort='new', pCat='', picking=false, pendingPos=null;
 if(window.L){
   // 지도는 하노이 주변만 (확대·이동 범위 제한)
   map=L.map('map',{minZoom:11, maxBounds:[[20.70,105.40],[21.40,106.15]], maxBoundsViscosity:0.8}).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
-  // openstreetmap.org는 베트남 일부 통신사에서 막혀 있어서, 같은 OSM 데이터를 쓰는 CARTO 서버를 사용
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
-    subdomains:'abcd', maxZoom:19,
-    attribution:'&copy; OpenStreetMap contributors &copy; CARTO'
+  // openstreetmap.org는 베트남 일부 통신사(VNPT 등)에서 막혀 있어서, 같은 OSM 데이터를 쓰는 OSM 프랑스 서버를 사용 (키 불필요)
+  L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',{
+    subdomains:'abc', maxZoom:19,
+    attribution:'&copy; OpenStreetMap contributors · 타일 OSM France'
   }).addTo(map);
 } else {
   G('map').innerHTML='<div class="map-fail">지도를 불러오지 못했어요.<br/>인터넷 연결을 확인하고 새로고침해주세요.</div>';
