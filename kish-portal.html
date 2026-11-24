@@ -62,7 +62,7 @@ button,input,select,textarea{font-family:inherit}
 
 /* MAP */
 .map-wrap{position:relative;isolation:isolate;border-radius:16px;overflow:hidden;box-shadow:var(--card);margin-bottom:10px;background:#e8eaf0}
-#map{height:320px}
+#mapBox{height:320px}
 .map-pin{position:absolute;left:50%;top:50%;transform:translate(-50%,-92%);font-size:38px;line-height:1;z-index:500;pointer-events:none;filter:drop-shadow(0 2px 2px rgba(0,0,0,.35))}
 .map-btn{position:absolute;right:10px;bottom:24px;z-index:500;width:42px;height:42px;border-radius:50%;border:none;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.25);font-size:20px;cursor:pointer}
 .map-fail{display:flex;align-items:center;justify-content:center;height:100%;font-size:13px;color:var(--sub);text-align:center;padding:20px;line-height:1.6}
@@ -200,7 +200,7 @@ button,input,select,textarea{font-family:inherit}
   </form>
   <div id="searchResults"></div>
   <div class="map-wrap">
-    <div id="map"></div>
+    <div id="mapBox"></div>
     <div class="map-pin" id="mapPin" hidden>📍</div>
     <button class="map-btn" id="locBtn" type="button" onclick="goMyLocation()" aria-label="내 위치">🧭</button>
   </div>
@@ -385,14 +385,14 @@ var placeCat='all', placeSort='new', pCat='', picking=false, pendingPos=null;
 
 if(window.L){
   // 지도는 하노이 주변만 (확대·이동 범위 제한)
-  map=L.map('map',{minZoom:11, maxBounds:[[20.70,105.40],[21.40,106.15]], maxBoundsViscosity:0.8}).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+  map=L.map('mapBox',{minZoom:11, maxBounds:[[20.70,105.40],[21.40,106.15]], maxBoundsViscosity:0.8}).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
   // openstreetmap.org는 베트남 일부 통신사(VNPT 등)에서 막혀 있어서, 같은 OSM 데이터를 쓰는 OSM 프랑스 서버를 사용 (키 불필요)
   L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',{
     subdomains:'abc', maxZoom:19,
     attribution:'&copy; OpenStreetMap contributors · 타일 OSM France'
   }).addTo(map);
 } else {
-  G('map').innerHTML='<div class="map-fail">지도를 불러오지 못했어요.<br/>인터넷 연결을 확인하고 새로고침해주세요.</div>';
+  G('mapBox').innerHTML='<div class="map-fail">지도를 불러오지 못했어요.<br/>인터넷 연결을 확인하고 새로고침해주세요.</div>';
 }
 
 function pinIcon(cat){
@@ -445,7 +445,7 @@ function renderPlaces(){
 }
 function focusPlace(id){
   var m=markers[id]; if(!m||!map) return;
-  G('map').scrollIntoView({behavior:'smooth',block:'center'});
+  G('mapBox').scrollIntoView({behavior:'smooth',block:'center'});
   map.setView(m.getLatLng(),17);
   m.openPopup();
 }
@@ -456,7 +456,7 @@ function startPick(){
   requireAuth(function(){
     picking=true; map.closePopup();
     G('mapPin').hidden=false; G('pickBar').hidden=false; G('addPlaceBtn').hidden=true;
-    G('map').scrollIntoView({behavior:'smooth',block:'center'});
+    G('mapBox').scrollIntoView({behavior:'smooth',block:'center'});
   });
 }
 function cancelPick(){
@@ -532,7 +532,7 @@ function goSearchHit(i){
     if(searchMarker) searchMarker.setLatLng(ll);
     else searchMarker=L.circleMarker(ll,{radius:9,color:'#fff',weight:3,fillColor:'#FF7043',fillOpacity:1}).addTo(map);
   }
-  G('map').scrollIntoView({behavior:'smooth',block:'center'});
+  G('mapBox').scrollIntoView({behavior:'smooth',block:'center'});
 }
 function goMyLocation(){
   if(!map) return;
