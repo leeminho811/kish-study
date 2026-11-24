@@ -48,8 +48,9 @@ service cloud.firestore {
     match /places/{id} {
       allow read: if true;
       allow create: if newPost()
-        && request.resource.data.keys().hasOnly(['name','category','memo','author','lat','lng','ownerUid','createdAt','likes','reporters'])
+        && request.resource.data.keys().hasOnly(['name','category','memo','author','addr','lat','lng','ownerUid','createdAt','likes','reporters'])
         && filled(request.resource.data.name, 30)
+        && (!('addr' in request.resource.data) || filled(request.resource.data.addr, 100))
         && request.resource.data.category in ['분식','한식','베트남음식','카페','패스트푸드','디저트','기타']
         && str(request.resource.data.memo, 150)
         && str(request.resource.data.author, 20)
