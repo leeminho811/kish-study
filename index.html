@@ -19,9 +19,12 @@ h1{font-size:22px;font-weight:900;margin-bottom:24px;text-align:center}
 .t{font-size:16px;font-weight:800;margin-bottom:4px}
 .d{font-size:13px;color:#888}
 .qr-card{text-align:center;margin-top:22px;padding-top:20px;border-top:1px solid #e0e0e0}
-.qr-card img{width:160px;height:160px;border-radius:12px;border:1px solid #e0e0e0;margin-bottom:10px}
-.qr-t{font-size:13px;font-weight:800;margin-bottom:4px}
+.qr-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.qr-item{background:#fff;border-radius:14px;padding:12px 8px;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
+.qr-item img{width:100%;max-width:150px;aspect-ratio:1;border-radius:10px;border:1px solid #e0e0e0;margin-bottom:8px}
+.qr-t{font-size:13px;font-weight:800}
 .qr-d{font-size:12px;color:#888;line-height:1.5}
+@media (max-width:330px){ .qr-grid{grid-template-columns:1fr} .qr-item img{max-width:160px} }
 </style>
 </head>
 <body>
@@ -39,8 +42,17 @@ h1{font-size:22px;font-weight:900;margin-bottom:24px;text-align:center}
   </a>
 
   <div class="qr-card">
-    <img src="qr-kish-study.png" alt="열공타이머 QR코드"/>
-    <div class="qr-t">📱 QR로 열공타이머 앱 설치하기</div>
+    <div class="qr-grid">
+      <div class="qr-item">
+        <img src="qr-kish-study.png" alt="열공타이머 QR코드"/>
+        <div class="qr-t">🔥 열공타이머</div>
+      </div>
+      <div class="qr-item">
+        <img src="qr-kish-portal.png" alt="생활 포털 QR코드"/>
+        <div class="qr-t">🏙️ 생활 포털</div>
+      </div>
+    </div>
+    <div class="qr-t" style="margin-bottom:4px">📱 QR로 앱 설치하기</div>
     <div class="qr-d">스캔 후 브라우저 메뉴에서<br/>"홈 화면에 추가"를 누르면 앱처럼 설치돼요<br/><b>⚠️ 꼭 크롬(Chrome)으로 열어주세요</b><br/>(카카오톡 등 인앱 브라우저에서는 설치가 안 돼요)</div>
   </div>
 </div>

@@ -3,7 +3,7 @@
   "short_name": "열공타이머",
   "description": "KISH 학생 공부 시간 인증, 랭킹, 스트릭 서비스",
   "start_url": "./kish-study.html",
-  "scope": "./",
+  "scope": "./kish-study.html",
   "id": "/kish-study.html",
   "display": "standalone",
   "background_color": "#5C6BC0",

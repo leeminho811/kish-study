@@ -1,0 +1,19 @@
+{
+  "name": "KISH 생활 포털",
+  "short_name": "생활포털",
+  "description": "KISH 학생 맛집 지도, 분실물 게시판, 나눔 게시판",
+  "start_url": "./kish-portal.html",
+  "scope": "./kish-portal.html",
+  "id": "/kish-portal.html",
+  "display": "standalone",
+  "background_color": "#5C6BC0",
+  "theme_color": "#5C6BC0",
+  "orientation": "portrait",
+  "lang": "ko",
+  "icons": [
+    { "src": "icons/icon-portal-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-portal-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-portal-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-portal-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

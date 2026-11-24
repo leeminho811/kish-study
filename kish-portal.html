@@ -4,8 +4,14 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>KISH 생활 포털</title>
+<link rel="manifest" href="manifest-portal.json"/>
+<link rel="icon" href="icons/icon-portal-192.png"/>
+<link rel="apple-touch-icon" href="icons/icon-portal-192.png"/>
 <meta name="theme-color" content="#5C6BC0"/>
-<link rel="icon" href="icons/icon-192.png"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="생활포털"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -151,9 +157,27 @@ button,input,select,textarea{font-family:inherit}
 /* TOAST */
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(160px);background:#333;color:#fff;padding:11px 20px;border-radius:12px;font-size:13px;font-weight:700;transition:transform 0.3s;z-index:1300;max-width:92vw;text-align:center;pointer-events:none}
 .toast.show{transform:translateX(-50%) translateY(0)}
+
+/* 앱 설치 안내 */
+.install-bar{display:none;align-items:center;gap:10px;background:#fff;border-bottom:1px solid var(--border);padding:10px 14px}
+.install-bar.show{display:flex}
+.install-ico{font-size:24px;flex-shrink:0}
+.install-txt{flex:1;font-size:12px;font-weight:700;color:var(--text);line-height:1.4}
+.install-txt b{color:var(--primary)}
+.install-btn{flex-shrink:0;padding:8px 14px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-size:12px;font-weight:800;cursor:pointer}
+.install-close{flex-shrink:0;background:none;border:none;font-size:16px;color:var(--sub);cursor:pointer;padding:4px}
+/* 앱으로 실행 중일 때는 홈 버튼 숨김 (포털 자체가 하나의 앱) */
+@media (display-mode: standalone){ .home-link{display:none} }
 </style>
 </head>
 <body>
+
+<div class="install-bar" id="installBar">
+  <div class="install-ico">📲</div>
+  <div class="install-txt" id="installTxt"><b>앱으로 설치</b>하면 더 빠르고 편하게 써요</div>
+  <button class="install-btn" id="installBtn" type="button" onclick="doInstall()">설치하기</button>
+  <button class="install-close" type="button" onclick="dismissInstallBar()" aria-label="닫기">✕</button>
+</div>
 
 <div class="topbar">
   <div class="topbar-top">
@@ -774,6 +798,61 @@ G('catFilter').innerHTML='<button type="button" class="chip on" data-act="catf" 
 (function(){
   var start=(location.hash||'').slice(1);
   goTab(['map','lost','share'].indexOf(start)>=0 ? start : 'map');
+})();
+
+// ── 앱(PWA) 설치 ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(e){ console.warn('SW register failed', e); });
+  });
+}
+var deferredInstallPrompt = null;
+function isStandalone(){
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+function dismissInstallBar(){
+  G('installBar').classList.remove('show');
+  try{ sessionStorage.setItem('portalInstallBarDismissed','1'); }catch(e){}
+}
+function doInstall(){
+  if(deferredInstallPrompt){
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.finally(function(){ deferredInstallPrompt=null; dismissInstallBar(); });
+  }
+}
+(function(){
+  if(isStandalone()) return; // 이미 앱으로 실행 중
+  var dismissed = false;
+  try{ dismissed = sessionStorage.getItem('portalInstallBarDismissed')==='1'; }catch(e){}
+  if(dismissed) return;
+
+  var ua = navigator.userAgent;
+  var isIOS = /iPhone|iPad|iPod/i.test(ua);
+  var isIOSChrome = isIOS && /CriOS/i.test(ua);
+  // 카카오톡/네이버/인스타 등 인앱 브라우저는 설치 기능 자체가 없음
+  var isInApp = /KAKAOTALK|NAVER\(inapp|Line\/|FBAN|FBAV|Instagram|DaumApps|MicroMessenger/i.test(ua);
+
+  if(isInApp){
+    G('installTxt').innerHTML = '<b>이 브라우저에서는 설치가 안 돼요.</b> 우측 상단 메뉴(⋮/•••)에서 "다른 브라우저로 열기"를 눌러 <b>Chrome</b>으로 열어주세요';
+    G('installBtn').style.display='none';
+    G('installBar').classList.add('show');
+  } else if(isIOS){
+    G('installTxt').innerHTML = isIOSChrome
+      ? '<b>공유 버튼</b> → <b>"홈 화면에 추가"</b>를 누르면 앱처럼 설치돼요'
+      : '<b>Chrome</b>으로 열어야 앱으로 설치할 수 있어요';
+    G('installBtn').style.display='none';
+    G('installBar').classList.add('show');
+  } else {
+    // 안드로이드 크롬 등: 설치창을 원탭으로 띄움
+    window.addEventListener('beforeinstallprompt', function(e){
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      G('installBtn').style.display='';
+      G('installTxt').innerHTML = '<b>앱으로 설치</b>하면 더 빠르고 편하게 써요 (Chrome 권장)';
+      G('installBar').classList.add('show');
+    });
+  }
+  window.addEventListener('appinstalled', function(){ dismissInstallBar(); });
 })();
 </script>
 </body>
